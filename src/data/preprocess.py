@@ -41,11 +41,11 @@ def build_dataset(pdata, rtrain, rval, rtest, ofname):
            "Train, validation and test ratios must sum to 1."
     out = {}
     data = []
-    ofname = pdata.joinpath(ofname) if ("-o" or "--output" in sys.argv[1:]) \
-                                    else ofname.resolve()
+    ofname = ofname.resolve() if ("-o" in sys.argv[1:] or "--output" in sys.argv[1:]) \
+                              else pdata.joinpath(ofname)
     for fname in pdata.iterdir():
         if fname.suffix != ".h5":
-            print("Ignoring {fname.name}, not an HDF.")
+            print(f"Ignoring {fname.name}, not an HDF.")
             continue
         hdf = h5py.File(fname, 'r')
         data.append((fname.name, int(hdf["ImageGeometry"]["frameNumber"][()])))
