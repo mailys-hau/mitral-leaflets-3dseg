@@ -48,20 +48,17 @@ def build_dataset(pdata, rtrain, rval, rtest, ofname):
             print("Ignoring {fname.name}, not an HDF.")
             continue
         hdf = h5py.File(fname, 'r')
-        data.append({fname.name: int(hdf["ImageGeometry"]["frameNumber"][()])})
+        data.append((fname.name, int(hdf["ImageGeometry"]["frameNumber"][()])))
         hdf.close()
     # Split into train/validation/test sets
     rd.shuffle(data)
     nb = len(data)
     tridx, validx, teidx = int(rtrain * nb), int(rtrain * nb), int(rtrain * nb)
     train, val, test = data[:tridx], data[tridx:validx], data[validx:]
-    out = {"train": {"files": train,
-                     "total_frames": sum([vv for v in train for vv in v.values()])},
-           "validation": {"files": val,
-                          "total_frames": sum([vv for v in val for vv in v.values()])},
-           "test": {"files": test,
-                    "total_frames": sum([vv for v in test for vv in v.values()])}}
-    out["total_frames"] = sum([ vv for v in data for vv in v.values()])
+    out = {"train": {"files": train, "total_frames": sum([t[1] for t in train])},
+           "validation": {"files": val, "total_frames": sum([t[1] for t in val])},
+           "test": {"files": test, "total_frames": sum([t[1] for t in test])}}
+    out["total_frames"] = sum([subout["total_frames"] for subout in out.values()])
     with open(ofname, 'w') as fd:
         #TODO? Order keys
         yaml.dump(out, fd, default_flow_style=False)
