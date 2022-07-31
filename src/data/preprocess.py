@@ -43,12 +43,13 @@ def build_dataset(pdata, rtrain, rval, rtest, ofname):
     data = []
     ofname = ofname.resolve() if ("-o" in sys.argv[1:] or "--output" in sys.argv[1:]) \
                               else pdata.joinpath(ofname)
+    #TODO? Pretty tqdm bar
     for fname in pdata.iterdir():
         if fname.suffix != ".h5":
             print(f"Ignoring {fname.name}, not an HDF.")
             continue
         hdf = h5py.File(fname, 'r')
-        data.append((fname.name, int(hdf["ImageGeometry"]["frameNumber"][()])))
+        data.append([fname.name, int(hdf["ImageGeometry"]["frameNumber"][()])])
         hdf.close()
     # Split into train/validation/test sets
     rd.shuffle(data)
