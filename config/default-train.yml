@@ -1,0 +1,12 @@
+data:
+  batch_size: 64
+  num_workers: 4
+
+network:
+  optimizer:
+    name: Adam
+    lr: 1.e-3
+
+trainer:
+  max_epochs: 10
+  gpus: 1
