@@ -1,6 +1,8 @@
 import h5py
+import torch
 
 from itertools import accumulate # Faster than numpy if you manipulate list
+from pathlib import Path
 from torch import from_numpy as fnp
 from torch.utils.data import Dataset
 
@@ -9,10 +11,12 @@ from torch.utils.data import Dataset
 class HDFDataset(Dataset):
     """ Load from pre-processed HDF files """
     def __init__(self, data_dir, hdfnames, total_frames, norm=None):
-        self.data_dir = data_dir
+        super(HDFDataset, self).__init__()
+        self.prefix = Path(data_dir).expanduser().resolve()
         self._setup_helpers(hdfnames)
         self.length = total_frames
-        # FIXME: Define default norm
+        #FIXME: Define default norm
+        #FIXME? Use a full transform instead of just norm
         self.norm = norm #Expect callable
 
     def _setup_helpers(self, hdfnames):
@@ -31,10 +35,11 @@ class HDFDataset(Dataset):
         seq_idx = self.sequences_indexes[i]
         frame_idx = i - self.cumulative_frame_len[seq_idx] + 1
         #FIXME: Bottleneck, find a way to bufferise some frames
-        hdfile = h5py.File(self.data_dir.joinpath(self.fnames[seq_idx]), 'r')
-        out = fnp(hdfile["CartesianVolumes"][f"vol{frame_idx:02d}"][()])
+        hdfile = h5py.File(self.prefix.joinpath(self.fnames[seq_idx]), 'r')
+        vin = fnp(hdfile["CartesianVolumes"][f"vol{frame_idx:02d}"][()]).to(torch.float)
+        vout = fnp(hdfile["Labels"][f"vol{frame_idx:02d}"][()]).to(torch.long)
         hdfile.close()
-        return out
+        return vin, vout
 
 
     def __getitem__(self, i):
