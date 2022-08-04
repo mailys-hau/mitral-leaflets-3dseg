@@ -2,6 +2,7 @@ import click as cli
 import yaml
 
 from copy import deepcopy
+from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
@@ -46,9 +47,12 @@ def train(ctx): # FIX
     print("Building network...")
     cnet = config["network"]
     net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
-    #wandblog = WandbLogger(project="3D-MA-segmentation", group=ctx.obj["group"],
-    #                       job_type="train", entity="mailys-hau", save_dir="../outputs")
-    trainer = Trainer(callbacks=[ModelCheckpoint(monitor="v_loss")], #logger=wandblog,
+    logdir = Path("../outputs").resolve()
+    logdir.mkdir(exist_ok=True) # Create if non-existent
+    #TODO: Add tag to logger
+    wandblog = WandbLogger(project="3D-MA-segmentation", group=ctx.obj["group"],
+                           job_type="train", entity="mailys-hau", save_dir=str(logdir))
+    trainer = Trainer(callbacks=[ModelCheckpoint(monitor="v_loss")], logger=wandblog,
                       **config["trainer"])
     print("Training...")
     trainer.fit(net, trloader, valoader)
@@ -65,6 +69,9 @@ def test(ctx):
     print("Building network...")
     if not "weights" in config["network"]:
         raise UserWarning("No weights were given for the network. Results will be random.")
+    logdir = Path("../outputs").resolve()
+    logdir.mkdir(exist_ok=True) # Create if non-existent
+    #TODO: Add tag to logger
     wandblog = WandbLogger(project="3D-MA-segmentation", group=ctx.obj["group"],
                            job_type="eval", entity="mailys-hau", save_dir="../outputs")
     tester = Trainer(logger=wandblog, **config["tester"])
