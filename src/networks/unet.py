@@ -27,9 +27,10 @@ class _MonaiBasicUNet(mnn.BasicUNet):
 
 class _MonaiUNet(mnn.UNet):
     # Wrapper around Monai UNet. Accept **kwargs for multi-inheritance
-    def __init__(self, spatial_dims, in_channels, out_channels, channels, strides,
-                 kernel_size=3, up_kernel_size=3, num_res_units=0, act="PRELU",
-                 norm="INSTANCE", dropout=0.0, bias=True, adn_ordering="NDA", **kwargs):
+    def __init__(self, spatial_dims=3, in_channels=1, out_channels=1,
+                 channels=(8, 16, 32), strides=(2, 2), kernel_size=3, up_kernel_size=3,
+                 num_res_units=0, act="PRELU", norm="INSTANCE", dropout=0.0, bias=True,
+                 adn_ordering="NDA", **kwargs):
         super(_MonaiUNet, self).__init__(spatial_dims, in_channels, out_channels,
                                          channels, strides, kernel_size, up_kernel_size,
                                          num_res_units, act, norm, dropout, bias,
@@ -59,16 +60,13 @@ class BasicUNet(EnhancedLightningModule, _MonaiBasicUNet):
         return super(BasicUNet, self).forward(x)
 
 class UNet(EnhancedLightningModule, _MonaiUNet):
-    def __init__(self, spatial_dims=3, in_channels=1, out_channels=2,
-                 channels=(8, 16, 32), strides=(2, 2), loss=nn.CrossEntropyLoss(),
+    def __init__(self, loss=nn.CrossEntropyLoss(),
                  optimizer={"name": "Adam", "params": {}}, metrics=[], **unet_kwargs):
-        # /!\ Arguments must have the same name as in mother classes /!\
         super(UNet, self).__init__(
-                # UNet parameters
-                spatial_dims, in_channels, out_channels, channels, strides, **unet_kwargs,
+                #UNet parameters
+                **unet_kwargs,
                 # EnhancedLightningModule parameters
-                loss=loss, optimizer=optimizer, metrics=metrics
-                )
+                loss=loss, optimizer=optimizer, metrics=metrics)
 
     # Inheritance is resolved from left to right parent and both have `forward` method
     def forward_right(self, x):
