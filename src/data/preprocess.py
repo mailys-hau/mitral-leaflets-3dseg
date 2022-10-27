@@ -54,7 +54,7 @@ def build_dataset(pdata, rtrain, rval, rtest, ofname):
     # Split into train/validation/test sets
     rd.shuffle(data)
     nb = len(data)
-    tridx, validx, teidx = int(rtrain * nb), int(rtrain * nb), int(rtrain * nb)
+    tridx, validx = int(rtrain * nb), int((rtrain + rval) * nb)
     train, val, test = data[:tridx], data[tridx:validx], data[validx:]
     out = {"train": {"files": train, "total_frames": sum([t[1] for t in train])},
            "validation": {"files": val, "total_frames": sum([t[1] for t in val])},
