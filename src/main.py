@@ -66,10 +66,13 @@ def test(ctx):
     """ Let's see if your network work """
     config = deepcopy(ctx.obj["config"])
     print("Loading data...")
+    cdata = config["data"]
     teloader = load_data(cdata["dataset"].pop("name"), test=True, **cdata)
     print("Building network...")
-    if not "weights" in config["network"]:
+    cnet = config["network"]
+    if not "weights" in cnet:
         raise UserWarning("No weights were given for the network. Results will be random.")
+    net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
     logdir = Path("../outputs").resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger

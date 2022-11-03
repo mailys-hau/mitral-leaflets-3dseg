@@ -13,7 +13,8 @@ def load_data(name, test=False, **kwargs):
     kwdataset = kwargs.pop("dataset")
     dataset = _datasets[name]
     if test:
-        testset = dataset(root="mnist-data", train=False, transform=transforms, **kwdataset)
+        testset = dataset(kwdataset["prefix"], kwdataset["files"]["test"]["files"],
+                           kwdataset["files"]["test"]["total_frames"])
         return DataLoader(testset, **kwargs)
     else:
         trainset = dataset(kwdataset["prefix"], kwdataset["files"]["train"]["files"],
