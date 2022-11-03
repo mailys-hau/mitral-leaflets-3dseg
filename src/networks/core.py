@@ -39,14 +39,6 @@ class EnhancedLightningModule(pl.LightningModule):
                 for m in metrics })
 
 
-    def get_progress_bar_dict(self):
-        #FIXME: Deprecated
-        # Don't show version number on progressbar
-        items = super().get_progress_bar_dict()
-        items.pop("v_num", None)
-        return items
-
-
     def _step(self, batch, batch_idx):
         x, y = batch
         #FIXME: Patch for multi-inheritance
