@@ -50,14 +50,15 @@ def train(ctx): # FIX
     logdir = Path("../outputs").resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
-    wandblog = WandbLogger(project="3D-MA-segmentation", group=ctx.obj["group"],
-                           job_type="train", entity="mailys-hau", save_dir=str(logdir))
+    wandblog = WandbLogger(project="3DMV-segmentation", group=ctx.obj["group"],
+                           job_type="train", entity="tee-4d", save_dir=str(logdir))
+    # Save full training config (before training in case of crash)
+    wandblog.experiment.config.update(ctx.obj["config"])
     trainer = Trainer(callbacks=[ModelCheckpoint(monitor="v_loss")], logger=wandblog,
                       **config["trainer"])
     print("Training...")
     trainer.fit(net, trloader, valoader)
-    # Save full training config
-    trainer.logger.log_hyperparams(ctx.obj["config"])
+
 
 @main.command(name="test", short_help="Testing.")
 @cli.pass_context
@@ -72,12 +73,12 @@ def test(ctx):
     logdir = Path("../outputs").resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
-    wandblog = WandbLogger(project="3D-MA-segmentation", group=ctx.obj["group"],
-                           job_type="eval", entity="mailys-hau", save_dir="../outputs")
+    wandblog = WandbLogger(project="3DMV-segmentation", group=ctx.obj["group"],
+                           job_type="eval", entity="tee-4d", save_dir="../outputs")
+    # Save full testing config (before testing in case of crash)
+    wandblog.experiment.config.update(ctx.obj["config"])
     tester = Trainer(logger=wandblog, **config["tester"])
     tester.test(net, teloader)
-    # Save full training config
-    tester.logger.log_hyperparams(ctx.obj["config"])
 
 
 
