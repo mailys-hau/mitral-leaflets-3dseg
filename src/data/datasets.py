@@ -9,8 +9,9 @@ from torch.utils.data import Dataset
 
 
 class HDFDataset(Dataset):
-    """ Load from pre-processed HDF files """
-    def __init__(self, data_dir, hdfnames, total_frames, norm=None):
+    """ Load frame by frame from pre-processed HDF files """
+    def __init__(self, data_dir, hdfnames, total_frames,
+                 norm=lambda x: x / 256, multiclass=False):
         super(HDFDataset, self).__init__()
         self.prefix = Path(data_dir).expanduser().resolve()
         self._setup_helpers(hdfnames)
@@ -18,6 +19,7 @@ class HDFDataset(Dataset):
         #FIXME: Define default norm
         #FIXME? Use a full transform instead of just norm
         self.norm = norm #Expect callable
+        self.multiclass = multiclass
 
     def _setup_helpers(self, hdfnames):
         self.fnames = []
@@ -37,14 +39,21 @@ class HDFDataset(Dataset):
         #FIXME: Bottleneck, find a way to bufferise some frames
         hdfile = h5py.File(self.prefix.joinpath(self.fnames[seq_idx]), 'r')
         vin = fnp(hdfile["CartesianVolumes"][f"vol{frame_idx:02d}"][()]).to(torch.float)
-        vout = fnp(hdfile["Labels"][f"vol{frame_idx:02d}"][()]).to(torch.long)
+        ant = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.long)
+        post = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.long)
         hdfile.close()
+        if self.multiclass:
+            pass #TODO
+        else:
+            vout = (ant | post).to(torch.float)
         return vin, vout
 
 
     def __getitem__(self, i):
-        return self._load_volume(i)
-        #return self.norm(vol)
+        vin, vout = self._load_volume(i)
+        vin = self.norm(vin) if self.norm else vin
+        # Gray scale, i.e. 1 channel
+        return vin.unsqueeze(0), vout.unsqueeze(0)
 
     def __len__(self):
         return self.length
