@@ -9,8 +9,7 @@ import torchmetrics
 
 class EnhancedLightningModule(pl.LightningModule):
     def __init__(self, loss=nn.MSELoss(), optimizer={"name": "Adam", "params": {}},
-                 metrics=[], **kwargs):
-        # Accept kwargs to allow multi-inheritance
+                 metrics=[]):
         super(EnhancedLightningModule, self).__init__()
         self.loss = loss
         self.optimizer_config = optimizer
@@ -42,7 +41,7 @@ class EnhancedLightningModule(pl.LightningModule):
     def _step(self, batch, batch_idx):
         x, y = batch
         #FIXME: Patch for multi-inheritance
-        self.preds = self.forward_right(x)
+        self.preds = self.forward(x)
         errs = self.loss(self.preds, y)
         return errs
 
