@@ -15,8 +15,8 @@ class HDFDataset(Dataset):
         super(HDFDataset, self).__init__()
         self.prefix = Path(data_dir).expanduser().resolve()
         self._setup_helpers(hdfnames)
-        self.length = total_frames
-        #FIXME: Define default norm
+        self.nb_frames = total_frames
+        #FIXME? Default norm as identity
         #FIXME? Use a full transform instead of just norm
         self.norm = norm #Expect callable
         self.multiclass = multiclass
@@ -45,7 +45,7 @@ class HDFDataset(Dataset):
         if self.multiclass:
             pass #TODO
         else:
-            vout = (ant | post).to(torch.float)
+            vout = (ant | post)
         return vin, vout
 
 
@@ -53,7 +53,7 @@ class HDFDataset(Dataset):
         vin, vout = self._load_volume(i)
         vin = self.norm(vin) if self.norm else vin
         # Gray scale, i.e. 1 channel
-        return vin.unsqueeze(0), vout.unsqueeze(0)
+        return vin.unsqueeze(0), vout
 
     def __len__(self):
-        return self.length
+        return self.nb_frames

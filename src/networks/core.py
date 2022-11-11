@@ -48,13 +48,8 @@ class EnhancedLightningModule(pl.LightningModule):
     def _update_metrics(self, y, mode="train", log=True):
         # Not sure why but key "train" isn't allowed for an `nn.ModuleDict`
         metrics = self.metrics[f"m{mode}"]
-        # For classification, most metrics only accept logit target
-        int_y = y.to(torch.long)
         for m in metrics.values():
-            try:
-                m(self.preds, int_y)
-            except ValueError:
-                m(self.preds, y) # Rare cases where float is needed
+            m(self.preds, y)
         #FIXME: Load by steps for test_step
         self.log_dict(metrics, on_epoch=True)
 
