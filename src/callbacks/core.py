@@ -33,5 +33,5 @@ class EnhancedCallback(Callback):
                 version = trainer.loggers[0].version # = WandB ID by default
                 save_dir = save_dir.joinpath(str(name), f"{run_name}_{version}")
             self.dirpath = save_dir.joinpath(category)
-        self.dirpath = self.dirpath.resolve().expanduser()
+        self.dirpath = self.dirpath.expanduser().resolve()
         self.dirpath.mkdir(parents=True, exist_ok=True)

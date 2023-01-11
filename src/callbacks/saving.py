@@ -42,7 +42,7 @@ class EnhancedModelCheckpoint(ModelCheckpoint):
                 version = trainer.loggers[0].version # = WandB ID by default
                 save_dir = save_dir.joinpath(str(name), f"{run_name}_{version}")
             save_dir = save_dir.joinpath("checkpoints")
-        return save_dir.resolve().expanduser()
+        return save_dir.expanduser().resolve()
 
 
 class SavePredictedSequence(EnhancedCallback):
