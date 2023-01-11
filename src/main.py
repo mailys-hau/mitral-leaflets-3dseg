@@ -32,7 +32,7 @@ def main(ctx, config_file, debug):
         with open(config_file, 'r') as ffd:
             config = yaml.load(ffd, InclusiveLoader)
         full_config = rec_update(full_config, config)
-    group = "debug" if debug else config["network"]["name"]
+    group = "debug" if debug else full_config["network"]["name"]
     ctx.obj = {"config": full_config, "group": group}
 
 
