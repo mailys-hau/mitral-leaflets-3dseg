@@ -47,6 +47,7 @@ def train(ctx): # FIX
     print("Building network...")
     cnet = config["network"]
     net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
+    # TODO? Match loggdir with checkpoint dir
     logdir = Path("../outputs").resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
@@ -61,8 +62,12 @@ def train(ctx): # FIX
 
 
 @main.command(name="test", short_help="Testing.")
+@cli.option("--eval/--no-eval", "eval_net", is_flag=True, default=True,
+            help="Do an evaluation run of the given network.")
+@cli.option("--predict/--no-predict", is_flag=True, default=False,
+            help="Predict on given dataset with given network.")
 @cli.pass_context
-def test(ctx):
+def test(ctx, eval_net, predict):
     """ Let's see if your network work """
     config = deepcopy(ctx.obj["config"])
     print("Loading data...")
@@ -80,8 +85,14 @@ def test(ctx):
                            job_type="eval", entity="tee-4d", save_dir="../outputs")
     # Save full testing config (before testing in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
-    tester = Trainer(logger=wandblog, **config["tester"])
-    tester.test(net, teloader)
+    tester = Trainer(logger=wandblog, **config["tester"],
+                     max_epochs=-1, # Remove warning
+                     callbacks=[SavePredictedSequence(), Plot4D()])
+    #FIXME: Do the same thing twice, inneficient
+    if eval_net:
+        tester.test(net, teloader)
+    if predict:
+        foo = tester.predict(net, teloader)
 
 
 

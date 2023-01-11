@@ -81,9 +81,8 @@ class EnhancedLightningModule(pl.LightningModule):
         self._update_metrics(y, "test")
         return self._log_errs(errs)
 
-    def predict(self, batch, batch_idx, dataloader_idx=None):
+    def predict_step(self, batch, batch_idx, dataloader_idx=None):
         errs = self._step(batch, batch_idx)
-        self.log_dict(errs)
         return self.preds
 
 
