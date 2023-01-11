@@ -4,10 +4,10 @@ import yaml
 from copy import deepcopy
 from pathlib import Path
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.seed import seed_everything
 
+from callbacks import *
 from data import load_data
 from networks import build_model
 from utils import InclusiveLoader, rec_update
@@ -54,8 +54,8 @@ def train(ctx): # FIX
                            job_type="train", entity="tee-4d", save_dir=str(logdir))
     # Save full training config (before training in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
-    trainer = Trainer(callbacks=[ModelCheckpoint(monitor="v_loss")], logger=wandblog,
-                      **config["trainer"])
+    trainer = Trainer(callbacks=[EnhancedModelCheckpoint(monitor="v_loss")],
+                      logger=wandblog, **config["trainer"])
     print("Training...")
     trainer.fit(net, trloader, valoader)
 
