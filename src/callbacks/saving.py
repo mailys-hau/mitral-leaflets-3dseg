@@ -1,5 +1,9 @@
+import h5py
+
 from pathlib import Path
 from pytorch_lightning.callbacks import ModelCheckpoint
+
+from callbacks.core import EnhancedCallback
 
 
 
@@ -39,3 +43,32 @@ class EnhancedModelCheckpoint(ModelCheckpoint):
                 save_dir = save_dir.joinpath(str(name), f"{run_name}_{version}")
             save_dir = save_dir.joinpath("checkpoints")
         return save_dir.resolve().expanduser()
+
+
+class SavePredictedSequence(EnhancedCallback):
+    def __init__(self, dirpath="~/Documents/outputs/3dmv-segmentation"):
+        #FIXME: Match wandb exp name
+        self.dirpath = dirpath
+
+    def on_predict_epoch_end(self, trainer, pl_module, outputs):
+        #FIXME? Handle several dataloader
+        #FIXME? Handle other than HDFDataset
+        #FIXME: Save voxel grid detail on option
+        #FIXME? Save alongside input??
+        #FIXME: Multiprocess + nice tqdm bar
+        all_frames = outputs[0]
+        dataset = trainer.predict_dataloaders[0].dataset
+        prev_nb_frames = 0
+        for i, fname in enumerate(dataset.fnames):
+            hdf = h5py.File(self.dirpath.joinpath(fname), 'w')
+            res = hdf.create_group("/Predictions")
+            nb_frames = dataset.cumulative_frame_len[i + 1] \
+                         - dataset.cumulative_frame_len[i]
+            for k in range(nb_frames):
+                out = all_frames[k + prev_nb_frames].squeeze().numpy()
+                res.create_dataset(f"vol{k + 1:02d}", data=out)
+            prev_nb_frames = nb_frames
+            hdf.close()
+
+    def setup(self, trainer, pl_module, stage):
+        self.resolve_dirpath(trainer, "predictions")
