@@ -2,12 +2,14 @@ import inspect as ispc
 import torch.nn as nn
 
 from losses import XEntropyLoss
+from networks.mixed_architecture import SwinUNETR, UNETR
 from networks.unet import BasicUNet, UNet
 
 
 
 
-_all_models = {"BasicUNet": BasicUNet, "UNet": UNet}
+_all_models = {"BasicUNet": BasicUNet, "SwinUNETR": SwinUNETR, "UNet": UNet,
+               "UNETR": UNETR}
 _all_losses = {"XEntropyLoss": XEntropyLoss}
 
 
