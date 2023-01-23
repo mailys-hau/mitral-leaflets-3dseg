@@ -40,19 +40,19 @@ class HDFDataset(Dataset):
         #FIXME: Bottleneck, find a way to bufferise some frames
         hdfile = h5py.File(self.get_path(seq_idx), 'r')
         vin = fnp(hdfile["CartesianVolumes"][f"vol{frame_idx:02d}"][()]).to(torch.float)
-        ant = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.long)
-        post = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.long)
+        ant = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.bool)
+        post = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.bool)
         hdfile.close()
         if self.multiclass:
             #FIXME: Some voxel are in both ant & post class
-            #none = ! (ant | post)
+            none = ~(ant | post)
             #vout = nn.ModuleList([none, ant, post])
-            pass
+            vout = torch.stack([none, ant, post])
         else:
             leaflet = (ant | post)
             # This way is easier to handle both multiclass and binary class
-            #vout = nn.ModuleList([!leaflet, leaflet])
-            vout = leaflet
+            #vout = nn.ModuleList([~leaflet, leaflet])
+            vout = torch.stack([~leaflet, leaflet])
         return vin, vout
 
     def get_path(self, i):
@@ -74,8 +74,8 @@ class HDFDataset(Dataset):
     def __getitem__(self, i):
         vin, vout = self._load_volume(i)
         vin = self.norm(vin) if self.norm else vin
-        # Gray scale, i.e. 1 channel
-        return vin.unsqueeze(0), vout
+        # Gray scale, i.e. 1 channel, need float to compute loss
+        return vin.unsqueeze(0), vout.to(torch.float)
 
     def __len__(self):
         return self.nb_frames
