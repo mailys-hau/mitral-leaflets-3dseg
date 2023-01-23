@@ -12,23 +12,23 @@ _datasets = {"HDFDataset": HDFDataset}
 def load_data(name, test=False, debug=False, **kwargs):
     kwdataset = kwargs.pop("dataset")
     dataset = _datasets[name]
+    prefix = kwdataset.pop("prefix")
+    files = kwdataset.pop("files")
     if test:
         if debug:
             testset = DummyDataset(3)
         else:
-            testset = dataset(kwdataset["prefix"],
-                              kwdataset["files"]["test"]["files"],
-                              kwdataset["files"]["test"]["total_frames"])
+            testset = dataset(prefix, files["test"]["files"],
+                              files["test"]["total_frames"], **kwdataset)
         return DataLoader(testset, **kwargs)
     else:
         if debug:
-            trainset = DummyDataset(10)
-            valset = DummyDataset(3)
+            trainset, valset = DummyDataset(10), DummyDataset(3)
         else:
-            trainset = dataset(kwdataset["prefix"], kwdataset["files"]["train"]["files"],
-                               kwdataset["files"]["train"]["total_frames"])
-            valset = dataset(kwdataset["prefix"], kwdataset["files"]["validation"]["files"],
-                             kwdataset["files"]["validation"]["total_frames"])
+            trainset = dataset(prefix, files["train"]["files"],
+                               files["train"]["total_frames"], **kwdataset)
+            valset = dataset(prefix, files["validation"]["files"],
+                             files["validation"]["total_frames"], **kwdataset)
         trainloader = DataLoader(trainset, batch_size=kwargs.pop("batch_size", 16),
                                  shuffle=True, **kwargs)
         valloader = DataLoader(valset, **kwargs)
