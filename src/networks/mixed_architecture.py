@@ -11,7 +11,7 @@ class SwinUNETR(EnhancedLightningModule):
     def __init__(self,
                  # Monai's SwinUNETR parameters
                  img_size=(256, 256, 256), in_channels=1, out_channels=2,
-                 depth=(2, 2, 2, 2), num_heads=(3, 6, 12, 24), feature_size=24,
+                 depths=(2, 2, 2, 2), num_heads=(3, 6, 12, 24), feature_size=24,
                  norm_name="instance", drop_rate=0, attn_drop_rate=0,
                  dropout_path_rate=0, normalize=True, use_checkpoint=False,
                  spatial_dims=3, downsample="merging",
@@ -22,7 +22,7 @@ class SwinUNETR(EnhancedLightningModule):
                  final_activation=nn.Sigmoid()):
         super(SwinUNETR, self).__init__(loss=loss, optimizer=optimizer, metrics=metrics)
         self.model = mnn.SwinUNETR(
-                img_size, in_channels, out_channels, depth=depth,
+                img_size, in_channels, out_channels, depths=depths,
                 num_heads=num_heads, feature_size=feature_size,
                 norm_name=norm_name, drop_rate=drop_rate,
                 attn_drop_rate=attn_drop_rate,
