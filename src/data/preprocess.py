@@ -41,6 +41,9 @@ def build_dataset(pdata, rtrain, rval, rtest, ofname):
            "Train, validation and test ratios must sum to 1."
     out = {}
     data = []
+    # FIXME: This should not be needed
+    pdata = Path(pdata.decode()) if isinstance(pdata, bytes) else pdata
+    ofname = ofname.decode() if isinstance(ofname, bytes) else ofname
     ofname = ofname.resolve() if ("-o" in sys.argv[1:] or "--output" in sys.argv[1:]) \
                               else pdata.joinpath(ofname)
     #TODO? Pretty tqdm bar
