@@ -49,7 +49,11 @@ class EnhancedLightningModule(pl.LightningModule):
         # Not sure why but key "train" isn't allowed for an `nn.ModuleDict`
         metrics = self.metrics[f"m{mode}"]
         for m in metrics.values():
-            m(self.preds, y)
+            try:
+                m(self.preds, y)
+            except ValueError as err:
+                # Some metrics need int to compute, e.g. Dice
+                m(self.preds, y.to(torch.bool))
         #FIXME: Load by steps for test_step
         self.log_dict(metrics, on_epoch=True)
 
