@@ -1,5 +1,6 @@
 import h5py
 import torch
+import torch.nn as nn
 
 from itertools import accumulate # Faster than numpy if you manipulate list
 from pathlib import Path
@@ -43,9 +44,15 @@ class HDFDataset(Dataset):
         post = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.long)
         hdfile.close()
         if self.multiclass:
-            pass #TODO
+            #FIXME: Some voxel are in both ant & post class
+            #none = ! (ant | post)
+            #vout = nn.ModuleList([none, ant, post])
+            pass
         else:
-            vout = (ant | post)
+            leaflet = (ant | post)
+            # This way is easier to handle both multiclass and binary class
+            #vout = nn.ModuleList([!leaflet, leaflet])
+            vout = leaflet
         return vin, vout
 
     def get_path(self, i):
@@ -76,3 +83,16 @@ class HDFDataset(Dataset):
     @property
     def nb_sequences(self):
         return len(self.fnames)
+
+
+class DummyDataset(Dataset):
+    def __init__(self, nb_dummies):
+        self.inputs = torch.rand(nb_dummies, 32, 32, 32).to(torch.float)
+        self.outputs = torch.randint(0, 2, (nb_dummies, 32, 32, 32)).to(torch.long)
+        self.nb_dummies = nb_dummies
+
+    def __getitem__(self, i):
+        return self.inputs[i].unsqueeze(0), self.outputs[i]
+
+    def __len__(self):
+        return self.nb_dummies

@@ -41,9 +41,10 @@ def main(ctx, config_file, debug):
 def train(ctx): # FIX
     """ The eye of the tiger """
     config = deepcopy(ctx.obj["config"])
+    debug = True if ctx.obj["group"] == "debug" else False
     print("Loading data...")
     cdata = config["data"]
-    trloader, valoader = load_data(cdata["dataset"].pop("name"), **cdata)
+    trloader, valoader = load_data(cdata["dataset"].pop("name"), debug=debug, **cdata)
     print("Building network...")
     cnet = config["network"]
     net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
