@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torchmetrics
 
+from utils import MONAI_METRICS
+
 
 
 class EnhancedLightningModule(pl.LightningModule):
@@ -17,25 +19,22 @@ class EnhancedLightningModule(pl.LightningModule):
 
     def _init_metrics(self, metrics):
         all_metrics = dict(ispc.getmembers(torchmetrics, ispc.isclass))
+        all_metrics.update(MONAI_METRICS)
         # We use `nn.ModuleDict` to always be on proper device and such
-        self.metrics = nn.ModuleDict()
+        self.metrics = nn.ModuleDict({"mtrain": nn.ModuleDict(),
+                                      "mval": nn.ModuleDict(),
+                                      "mtest": nn.ModuleDict()})
         def build_metric(name, *args, **kwargs):
             return all_metrics[name](*args, **kwargs)
-        self.metrics["mtrain"] = nn.ModuleDict({
-            m["display_name"]: build_metric(m["name"],
-                                            *m.get("args", []),
-                                            **m.get("kwargs", {}))
-                for m in metrics })
-        self.metrics["mval"] = nn.ModuleDict({
-            f"v_{m['display_name']}": build_metric(m["name"],
-                                                   *m.get("args", []),
-                                                   **m.get("kwargs", {}))
-                for m in metrics })
-        self.metrics["mtest"] = nn.ModuleDict({
-            m["display_name"]: build_metric(m["name"],
-                                            *m.get("args", []),
-                                            **m.get("kwargs", {}))
-                for m in metrics })
+        for m in metrics:
+            for mode in self.metrics.keys():
+                if mode == "mtrain" and m["name"] in MONAI_METRICS.keys():
+                    # Monai computes with `np.array` so use with parsimony
+                    continue
+                metric = build_metric(m["name"], *m.get("args", []), **m.get("kwargs", {}))
+                display_name = f"v_{m['display_name']}" if mode == "mval" \
+                               else m["display_name"]
+                self.metrics[mode].update({display_name: metric})
 
 
     def _step(self, batch, batch_idx):
