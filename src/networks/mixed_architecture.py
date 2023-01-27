@@ -19,7 +19,7 @@ class SwinUNETR(EnhancedLightningModule):
                  loss=nn.BCELoss(), optimizer={"name": "Adam", "params": {}},
                  metrics=[],
                  # Added personal parameters
-                 final_activation=nn.Sigmoid()):
+                 final_activation=nn.Softmax(dim=1)):
         super(SwinUNETR, self).__init__(loss=loss, optimizer=optimizer, metrics=metrics)
         self.model = mnn.SwinUNETR(
                 img_size, in_channels, out_channels, depths=depths,
@@ -47,7 +47,7 @@ class UNETR(EnhancedLightningModule):
                  loss=nn.BCELoss(), optimizer={"name": "Adam", "params": {}},
                  metrics=[],
                  # Added personal parameters
-                 final_activation=nn.Sigmoid()):
+                 final_activation=nn.Softmax(dim=1)):
         super(UNETR, self).__init__(loss=loss, optimizer=optimizer, metrics=metrics)
         self.model = mnn.UNETR(
                 in_channels, out_channels, img_size, feature_size=feature_size,

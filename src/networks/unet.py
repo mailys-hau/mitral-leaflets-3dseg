@@ -17,7 +17,7 @@ class BasicUNet(EnhancedLightningModule):
                  norm=("instance", {"affine": True}), bias=True, dropout=0.0,
                  upsample="deconv",
                  # Added personal arguments
-                 final_activation=nn.Sigmoid()):
+                 final_activation=nn.Softmax(dim=1)):
         super(BasicUNet, self).__init__(loss=loss, optimizer=optimizer, metrics=metrics)
         self.model = mnn.BasicUNet(
                 spatial_dims=spatial_dims, in_channels=in_channels,
@@ -41,7 +41,7 @@ class UNet(EnhancedLightningModule):
                  up_kernel_size=3, num_res_units=0, act="PRELU", norm="INSTANCE",
                  dropout=0, bias=True, adn_ordering="NDA",
                  # Specific arguments
-                 final_activation=nn.Sigmoid()):
+                 final_activation=nn.Softmax(dim=1)):
         super(UNet, self).__init__(loss=loss, optimizer=optimizer, metrics=metrics)
         self.model = mnn.UNet(
                 spatial_dims, in_channels, out_channels, channels, strides,
