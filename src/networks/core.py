@@ -5,16 +5,17 @@ import torch.nn as nn
 import torch.optim as optim
 import torchmetrics
 
-from utils import MONAI_METRICS
+from utils import LinearCosineLR, MONAI_METRICS
 
 
 
 class EnhancedLightningModule(pl.LightningModule):
     def __init__(self, loss=nn.MSELoss(), optimizer={"name": "Adam", "params": {}},
-                 metrics=[]):
+                 lr_scheduler=True, metrics=[]):
         super(EnhancedLightningModule, self).__init__()
         self.loss = loss
         self.optimizer_config = optimizer
+        self.lr_scheduler = lr_scheduler
         self._init_metrics(metrics)
 
     def _init_metrics(self, metrics):
@@ -90,9 +91,17 @@ class EnhancedLightningModule(pl.LightningModule):
 
 
     def configure_optimizers(self):
-        optimizers = dict(ispc.getmembers(optim, ispc.isclass))
-        return optimizers[self.optimizer_config.pop("name")](self.parameters(),
-                                                             **self.optimizer_config)
+        # All torch optimizer
+        optims = dict(ispc.getmembers(optim, ispc.isclass))
+        opt = optims[self.optimizer_config.pop("name")](self.parameters(),
+                                                        **self.optimizer_config)
+
+        if self.lr_scheduler:
+            nb_batches = len(self.trainer._data_connector._train_dataloader_source.dataloader())
+            tot_steps = self.trainer.max_epochs * nb_batches
+            lr = opt.defaults["lr"]
+            lrs = LinearCosineLR(opt, lr, 100, tot_steps)
+        return [opt], [{"scheduler": lrs, "interval": "step"}]
 
     #def configure_callbacks(self):
     #    return pl.callbacks.ModelCheckpoint(monitor="v_loss")

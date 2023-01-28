@@ -4,7 +4,7 @@ import yaml
 from copy import deepcopy
 from pathlib import Path
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.seed import seed_everything
 
@@ -58,7 +58,8 @@ def train(ctx): # FIX
     # Save full training config (before training in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
     callbacks = [EnhancedModelCheckpoint(monitor="v_loss"),
-                 EarlyStopping("v_loss", patience=5)]
+                 EarlyStopping("v_loss", patience=5),
+                 LearningRateMonitor("step")]
     trainer = Trainer(callbacks=callbacks, logger=wandblog, **config["trainer"])
     print("Training...")
     trainer.fit(net, trloader, valoader)
