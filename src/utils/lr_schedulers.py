@@ -30,5 +30,5 @@ class LinearCosineLR(LambdaLR):
         return step / max(1, self.warmup_steps)
 
     def _get_cosine_annealing_warm_restarts_factor(self, step):
-        progress = step - self.warmup_steps / max(1, self.max_steps - self.warmup_steps)
-        return max(0, 0.5 * (1 + math.cos(math.pi * self.nb_cycles) * 2 * progress))
+        progress = (step - self.warmup_steps) / max(1, self.max_steps - self.warmup_steps)
+        return max(0, 0.5 * (1 + math.cos(math.pi * self.nb_cycles * 2 * progress)))
