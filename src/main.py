@@ -1,4 +1,5 @@
 import click as cli
+import wandb
 import yaml
 
 from copy import deepcopy
@@ -53,8 +54,11 @@ def train(ctx): # FIX
     logdir = Path("../outputs").resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
+    # Patch to get WandB names in pytorch_lightning logger since 1.7
+    wandb.init(project="3DMV-segmentation", group=ctx.obj["group"], job_type="train")
     wandblog = WandbLogger(project="3DMV-segmentation", group=ctx.obj["group"],
-                           job_type="train", entity="tee-4d", save_dir=str(logdir))
+                           name=wandb.run.name, job_type="train", entity="tee-4d",
+                           save_dir=str(logdir))
     # Save full training config (before training in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
     callbacks = [EnhancedModelCheckpoint(monitor="v_loss"),
@@ -85,8 +89,11 @@ def test(ctx, eval_net, predict):
     logdir = Path("../outputs").resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
+    # Patch to get WandB names in pytorch_lightning logger since 1.7
+    wandb.init(project="3DMV-segmentation", group=ctx.obj["group"], job_type="eval")
     wandblog = WandbLogger(project="3DMV-segmentation", group=ctx.obj["group"],
-                           job_type="eval", entity="tee-4d", save_dir="../outputs")
+                           name=wandb.run.name, job_type="eval", entity="tee-4d",
+                           save_dir=str(logdir))
     # Save full testing config (before testing in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
     tester = Trainer(logger=wandblog, **config["tester"],
