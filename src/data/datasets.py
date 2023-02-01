@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 class HDFDataset(Dataset):
     """ Load frame by frame from pre-processed HDF files """
     def __init__(self, data_dir, hdfnames, total_frames,
-                 norm=lambda x: x / 256, multiclass=False):
+                 norm=lambda x: x / 256, multiclass=False, cache=False):
         super(HDFDataset, self).__init__()
         self.prefix = Path(data_dir).expanduser().resolve()
         self._setup_helpers(hdfnames)
@@ -20,7 +20,8 @@ class HDFDataset(Dataset):
         #FIXME? Default norm as identity
         #FIXME? Use a full transform instead of just norm
         self.norm = norm #Expect callable
-        self.multiclass = multiclass #FIXME: Makes it = nb of classes
+        self.multiclass = multiclass
+        self.cache = {} if cache else None
 
     def _setup_helpers(self, hdfnames):
         self.fnames = []
@@ -72,10 +73,16 @@ class HDFDataset(Dataset):
 
 
     def __getitem__(self, i):
-        vin, vout = self._load_volume(i)
-        vin = self.norm(vin) if self.norm else vin
-        # Gray scale, i.e. 1 channel, need float to compute loss
-        return vin.unsqueeze(0), vout.to(torch.float)
+        # If you run on a big enough machine, take advantage of it :3
+        if self.cache is None or i not in self.cache.keys():
+            vin, vout = self._load_volume(i)
+            vin = self.norm(vin) if self.norm else vin
+            # Gray scale, i.e. 1 channel, need float to compute loss
+            vin, vout = vin.unsqueeze(0), vout.to(torch.float)
+            if self.cache is None:
+                return vin, vout
+            self.cache[i] = (vin, vout)
+        return self.cache[i]
 
     def __len__(self):
         return self.nb_frames
@@ -87,8 +94,10 @@ class HDFDataset(Dataset):
 
 class DummyDataset(Dataset):
     def __init__(self, nb_dummies):
-        self.inputs = torch.rand(nb_dummies, 32, 32, 32).to(torch.float)
-        self.outputs = torch.randint(0, 2, (nb_dummies, 32, 32, 32)).to(torch.long)
+        size = 256 # Size of volume
+        nc = 2 # Number of classes
+        self.inputs = torch.rand(nb_dummies, size, size, size).to(torch.float)
+        self.outputs = torch.randint(0, 2, (nb_dummies, nc, size, size, size)).to(torch.float)
         self.nb_dummies = nb_dummies
 
     def __getitem__(self, i):
