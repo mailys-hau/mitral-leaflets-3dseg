@@ -1,6 +1,6 @@
 import yaml
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 
@@ -22,5 +22,8 @@ def rec_update(d, u):
         if isinstance(v, Mapping):
             d[k] = rec_update(d.get(k, {}), v)
         else:
-            d[k] = v
+            if k in d.keys() and isinstance(v, Iterable):
+                d[k].extend(v)
+            else:
+                d[k] = v
     return d
