@@ -1,1 +1,2 @@
-from losses.x_entropy import BalancedEntropyLoss, XEntropyLoss
+from losses.x_entropy import (BalancedEntropyLoss, PreservedBalancedEntropyLoss,
+                              XEntropyLoss)

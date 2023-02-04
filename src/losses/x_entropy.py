@@ -28,7 +28,33 @@ class BalancedEntropyLoss(nn.CrossEntropyLoss):
         if not hasattr(self, "dims"):
             self.dims = [i for i in range(2, target.ndim)]
         # First average accross the image, then accros the batch
-        weight = (1 - target).mean(dim=self.dims).mean(dim=0)
+        weight = 1 - target.mean(dim=self.dims).mean(dim=0)
+        # Enforce weight.sum() = number of classes
+        weight = target.shape[1] * F.softmax(weight, 0)
+        return F.cross_entropy(pred, target, weight=weight,
+                               ignore_index=self.ignore_index,
+                               reduction=self.reduction,
+                               label_smoothing=self.label_smoothing)
+
+class PreservedBalancedEntropyLoss(nn.CrossEntropyLoss):
+    """ Similar as BalancedCrossEntropy but aims to keep loss magnitude of
+        XEntropyLoss with no weights. """
+    def __init__(self, weight=None, size_average=None, ignore_index=-100,
+                 reduce=None, reduction="mean", label_smoothing=0):
+        # Enforcing there's no weights given, we computed it per data
+        super(PreservedBalancedEntropyLoss, self).__init__(None, size_average,
+                                                           ignore_index, reduce,
+                                                           reduction, label_smoothing)
+
+    def forward(self, pred, target):
+        # We want the heavier weight on less represented classes
+        # First dim is batch size, second is number of classes
+        if not hasattr(self, "dims"):
+            self.dims = [i for i in range(2, target.ndim)]
+        # First average accross the image, then accros the batch
+        weight = target.mean(dim=self.dims).mean(dim=0)
+        # Enforce loss value to be same scale to default CrossEntropyLoss
+        weight = 1 / (target.shape[1] * weight)
         return F.cross_entropy(pred, target, weight=weight,
                                ignore_index=self.ignore_index,
                                reduction=self.reduction,
