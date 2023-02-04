@@ -43,35 +43,46 @@ class EnhancedLightningModule(pl.LightningModule):
 
     def _step(self, batch, batch_idx):
         if self.post_process is None:
-            keep_labels = list(range(1, self.model.out_channels))
+            try:
+                keep_labels = list(range(1, self.model.out_channels))
+            except AttributeError: # SwinUNETR
+                keep_labels = list(range(1, self.model.out.conv.out_channels))
             #FIXME: Make this deactivable from config file
             # Don't process background
             self.post_process = mtr.FillHoles(keep_labels)
         x, y = batch
-        #FIXME: Patch for multi-inheritance
         out = self.forward(x)
-        errs = self.loss(out, y)
         preds = []
         for elt in out: # Post process need to be done element wise
             preds.append(self.post_process(elt.squeeze()))
-        self.preds = torch.stack(preds)
-        return errs
+        preds = torch.stack(preds)
+        return preds, self.loss(out, y)
 
-    def _update_metrics(self, y, mode="train"):
-        #FIXME: Ever heard of `MetricCollection`?
+    def _step_end(self, outs, name="loss", mode="train"):
+        #errs = self.loss(outs["preds"], outs["target"])
+        outs[name] = outs[name].mean()
+        self._update_metrics(outs, mode)
+        return outs
+
+
+    def _update_metrics(self, outs, mode="train", log=True):
         # Not sure why but key "train" isn't allowed for an `nn.ModuleDict`
+        #FIXME: Ever heard of `MetricCollection`?
+        preds, y = outs["preds"], outs["target"]
         metrics = self.metrics[f"m{mode}"]
+        on_step = True if mode == "test" else False
         for k, m in metrics.items():
             try:
-                val = m(self.preds, y)
+                val = m(preds, y)
             except ValueError as err:
                 # Some metrics need int to compute, e.g. Dice
-                val = m(self.preds, y.to(torch.bool))
+                val = m(preds, y.to(torch.bool))
             #FIXME: Load by steps for test
             if val.numel() > 1:
-                self.log_dict({f"{k}/{i}": val[i] for i in range(len(val))}, on_epoch=True)
+                self.log_dict({f"{k}/{i}": val[i] for i in range(len(val))},
+                              on_epoch=True, on_step=on_step, sync_dist=True)
             else:
-                self.log_dict({k: val}, on_epoch=True)
+                self.log_dict({k: val}, on_epoch=True, on_step=on_step, sync_dist=True)
 
     def _log_errs(self, errs, name="loss", on_step=False):
         if isinstance(errs, dict): # Used in VAE for example
@@ -79,30 +90,43 @@ class EnhancedLightningModule(pl.LightningModule):
                 errs = {f"v_{k}": v for k, v in errs.items()}
             self.log_dict(errs, prog_bar=True, on_step=on_step, on_epoch=True)
             return errs[name]
-        self.log(name, errs, prog_bar=True, on_step=on_step, on_epoch=True)
-        return errs if name == "loss" else {"v_loss": errs}
+        self.log(name, errs, prog_bar=True, on_step=on_step, on_epoch=True,
+                 sync_dist=True)
+        return {name: errs}
 
+
+    def training_step_end(self, outs):
+        self._step_end(outs)
+
+    def validation_step_end(self, outs):
+        self._step_end(outs, "v_loss", "val")
+
+    def test_step_end(self, outs):
+        self._step_end(outs, mode="test")
 
     def training_step(self, batch, batch_idx):
         _, y = batch
-        errs = self._step(batch, batch_idx)
-        self._update_metrics(y)
-        out = self._log_errs(errs, on_step=True)
-        return out
+        preds, errs = self._step(batch, batch_idx)
+        outs = self._log_errs(errs, on_step=True)
+        outs.update({"preds": preds, "target": y})
+        return outs
 
     def validation_step(self, batch, batch_idx):
         _, y = batch
-        errs = self._step(batch, batch_idx)
-        self._update_metrics(y, "val")
-        return self._log_errs(errs, name="v_loss")
+        preds, errs = self._step(batch, batch_idx)
+        outs = self._log_errs(errs, name="v_loss")
+        outs.update({"preds": preds, "target": y})
+        return outs
 
     def test_step(self, batch, batch_idx):
         _, y = batch
-        errs = self._step(batch, batch_idx)
-        self._update_metrics(y, "test")
-        return self._log_errs(errs)
+        preds, errs = self._step(batch, batch_idx)
+        outs = self._log_errs(errs)
+        outs.update({"preds": preds, "target": y})
+        return outs
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
+        #FIXME
         errs = self._step(batch, batch_idx)
         return self.preds
 
