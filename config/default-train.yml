@@ -1,13 +1,34 @@
 data:
-  batch_size: 64
+  # We only have one dataset anyway
+  dataset:
+    name: HDFDataset
+    prefix: "~/Documents/data/"
+    # FIXME: Consider separate file for train/test/val?
+    files: !include "~/Documents/data/data-split.yml"
+  batch_size: 4
   num_workers: 4
 
 network:
   optimizer:
     name: Adam
-    lr: 1.e-3
+    lr: 1.e-4
+  metrics: # Those are the one always computed and identical for all parameters
+    # Torchmetrics
+    - display_name: dice
+      name: Dice
+    # Monai's metrics
+    - display_name: hdf95
+      name: HausdorffDistance95
+    - display_name: masd
+      name: SurfaceDistance
+  spatial_dims: 3
+  in_channels: 1 # Gray scale all the time
+
 
 trainer:
   max_epochs: 10
   accelerator: gpu
   devices: 1
+  log_every_n_steps: 25
+  # Some metrics are slow so we don't validate every epoch
+  check_val_every_n_epoch: 3
