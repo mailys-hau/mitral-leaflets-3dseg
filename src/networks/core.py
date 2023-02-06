@@ -12,13 +12,15 @@ from utils import LinearCosineLR, MONAI_METRICS
 
 class EnhancedLightningModule(pl.LightningModule):
     def __init__(self, loss=nn.MSELoss(), optimizer={"name": "Adam", "params": {}},
-                 lr_scheduler=True, metrics=[]):
+                 lr_scheduler=True, final_activation=nn.Softmax(dim=1),
+                 metrics=[]):
         super(EnhancedLightningModule, self).__init__()
         self.loss = loss
         self.optimizer_config = optimizer
         self.lr_scheduler = lr_scheduler
         self._init_metrics(metrics)
         self.post_process = None # Have to be initalize later
+        self.final_activation = final_activation
 
 
     def _init_metrics(self, metrics):
@@ -52,8 +54,10 @@ class EnhancedLightningModule(pl.LightningModule):
             self.post_process = mtr.FillHoles(keep_labels)
         x, y = batch
         out = self.forward(x)
+        # Softmax is baked in `nn.CrossEntropyLoss`, only do it for preds
+        sout = self.final_activation(out)
         preds = []
-        for elt in out: # Post process need to be done element wise
+        for elt in sout: # Post process need to be done element wise
             preds.append(self.post_process(elt.squeeze()))
         preds = torch.stack(preds)
         return preds, self.loss(out, y)
