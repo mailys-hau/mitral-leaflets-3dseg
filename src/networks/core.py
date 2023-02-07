@@ -6,7 +6,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torchmetrics
 
-from utils import LinearCosineLR, MONAI_METRICS
+from metrics import MONAI_METRICS
+from utils import LinearCosineLR
 
 
 
@@ -83,7 +84,9 @@ class EnhancedLightningModule(pl.LightningModule):
                 val = m(preds, y.to(torch.bool))
             #FIXME: Load by steps for test
             if val.numel() > 1:
-                self.log_dict({f"{k}/{i}": val[i] for i in range(len(val))},
+                #FIXME: Quite an ugly patch
+                idx = lambda i: i + 1 if k in ["v_hdf95", "v_masd"] else i
+                self.log_dict({f"{k}/{idx(i)}": val[i] for i in range(len(val))},
                               on_epoch=True, on_step=on_step, sync_dist=True)
             else:
                 self.log_dict({k: val}, on_epoch=True, on_step=on_step, sync_dist=True)
