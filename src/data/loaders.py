@@ -22,10 +22,10 @@ def load_data(name, test=False, debug=False, **kwargs):
                               files["test"]["total_frames"], **kwdataset)
         return DataLoader(testset, **kwargs)
     else:
+        bs = kwargs.pop("batch_size", 16)
         if debug:
             trainset, valset = DummyDataset(10), DummyDataset(3)
         else:
-            bs = kwargs.pop("batch_size", 16)
             trainset = dataset(prefix, files["train"]["files"],
                                files["train"]["total_frames"], **kwdataset)
             valset = dataset(prefix, files["validation"]["files"],
