@@ -22,7 +22,7 @@ def rec_update(d, u):
         if isinstance(v, Mapping):
             d[k] = rec_update(d.get(k, {}), v)
         else:
-            if k in d.keys() and isinstance(v, Iterable):
+            if k in d.keys() and isinstance(v, Iterable) and not isinstance(v, str):
                 d[k].extend(v)
             else:
                 d[k] = v
