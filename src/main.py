@@ -99,7 +99,8 @@ def test(ctx, eval_net, predict):
     wandblog.experiment.config.update(ctx.obj["config"])
     tester = Trainer(logger=wandblog, **config["tester"],
                      max_epochs=-1, # Remove warning
-                     callbacks=[SavePredictedSequence(), Plot4D()])
+                     callbacks=[SavePredictedSequence(), Plot3DSlice(),
+                                Plot4DSlice(), Plot4D()])
     #FIXME: Do the same thing twice, inneficient
     if eval_net:
         tester.test(net, teloader)
