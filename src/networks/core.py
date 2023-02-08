@@ -108,6 +108,10 @@ class EnhancedLightningModule(pl.LightningModule):
     def test_step_end(self, outs):
         self._step_end(outs, mode="test")
 
+    def predict_step_end(self, outs):
+        # Metrics are for test, we're not logging anything here
+        return outs # outs = preds in this case
+
     def training_step(self, batch, batch_idx):
         _, y = batch
         preds, errs = self._step(batch, batch_idx)
@@ -130,9 +134,9 @@ class EnhancedLightningModule(pl.LightningModule):
         return outs
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        #FIXME
-        errs = self._step(batch, batch_idx)
-        return self.preds
+        _, y = batch
+        preds, _ = self._step(batch, batch_idx)
+        return preds
 
 
     def configure_optimizers(self):
