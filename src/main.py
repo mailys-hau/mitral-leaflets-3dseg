@@ -78,9 +78,10 @@ def train(ctx): # FIX
 def test(ctx, eval_net, predict):
     """ Let's see if your network work """
     config = deepcopy(ctx.obj["config"])
+    debug = True if ctx.obj["group"] == "debug" else False
     print("Loading data...")
     cdata = config["data"]
-    teloader = load_data(cdata["dataset"].pop("name"), test=True, **cdata)
+    teloader = load_data(cdata["dataset"].pop("name"), test=True, debug=debug, **cdata)
     print("Building network...")
     cnet = config["network"]
     if not "weights" in cnet:
