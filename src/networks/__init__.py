@@ -1,8 +1,8 @@
 import inspect as ispc
 import torch.nn as nn
 
-from losses import (BalancedEntropyLoss, PreservedBalancedEntropyLoss,
-                    XEntropyLoss)
+from losses import (BalancedEntropyLoss, FocalLoss,
+                    PreservedBalancedEntropyLoss, XEntropyLoss)
 from networks.mixed_architecture import SwinUNETR, UNETR
 from networks.unet import UNet, ResUNet
 
@@ -12,6 +12,7 @@ from networks.unet import UNet, ResUNet
 _all_models = {"UNet": UNet, "SwinUNETR": SwinUNETR, "ResUNet": ResUNet,
                "UNETR": UNETR}
 _all_losses = {"BalancedEntropyLoss": BalancedEntropyLoss,
+               "FocalLoss": FocalLoss,
                "PreservedBalancedEntropyLoss": PreservedBalancedEntropyLoss,
                "XEntropyLoss": XEntropyLoss}
 
