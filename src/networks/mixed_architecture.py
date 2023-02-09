@@ -31,6 +31,7 @@ class SwinUNETR(EnhancedLightningModule):
                 use_checkpoint=use_checkpoint, spatial_dims=spatial_dims,
                 downsample=downsample
                 )
+        self.out_channels = out_channels
 
     def forward(self, x):
         return self.model(x)
@@ -57,6 +58,7 @@ class UNETR(EnhancedLightningModule):
                 res_block=res_block, dropout_rate=dropout_rate,
                 spatial_dims=spatial_dims, qkv_bias=qkv_bias
                 )
+        self.out_channels = out_channels
 
     def forward(self, x):
         return self.model(x)

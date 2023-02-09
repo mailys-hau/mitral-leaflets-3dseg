@@ -46,10 +46,7 @@ class EnhancedLightningModule(pl.LightningModule):
 
     def _step(self, batch, batch_idx):
         if self.post_process is None:
-            try:
-                keep_labels = list(range(1, self.model.out_channels))
-            except AttributeError: # SwinUNETR
-                keep_labels = list(range(1, self.model.out.conv.out_channels))
+            keep_labels = list(range(1, self.out_channels))
             #FIXME: Make this deactivable from config file
             # Don't process background
             self.post_process = mtr.FillHoles(keep_labels)
