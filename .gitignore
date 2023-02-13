@@ -136,3 +136,4 @@ dmypy.json
 # Logger files
 outputs/
 *.out
+wandb/
