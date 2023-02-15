@@ -42,7 +42,7 @@ class HDFDataset(Dataset):
         hdfile = h5py.File(self.get_path(seq_idx), 'r')
         vin = fnp(hdfile["CartesianVolumes"][f"vol{frame_idx:02d}"][()]).to(torch.float)
         ant = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.bool)
-        post = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.bool)
+        post = fnp(hdfile["Labels"][f"post{frame_idx:02d}"][()]).to(torch.bool)
         hdfile.close()
         if self.multiclass:
             #FIXME: Some voxel are in both ant & post class
