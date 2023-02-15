@@ -20,7 +20,6 @@ class EnhancedLightningModule(pl.LightningModule):
         self.optimizer_config = optimizer
         self.lr_scheduler = lr_scheduler
         self._init_metrics(metrics)
-        self.post_process = None # Have to be initalize later
         self.final_activation = final_activation
 
 
@@ -45,20 +44,11 @@ class EnhancedLightningModule(pl.LightningModule):
 
 
     def _step(self, batch, batch_idx):
-        if self.post_process is None:
-            keep_labels = list(range(1, self.out_channels))
-            #FIXME: Make this deactivable from config file
-            # Don't process background
-            self.post_process = mtr.FillHoles(keep_labels)
         x, y = batch
         out = self.forward(x)
         # Softmax is baked in `nn.CrossEntropyLoss`, only do it for preds
         sout = self.final_activation(out)
-        preds = []
-        for elt in sout: # Post process need to be done element wise
-            preds.append(self.post_process(elt.squeeze()))
-        preds = torch.stack(preds)
-        return preds, self.loss(out, y)
+        return sout, self.loss(out, y)
 
     def _step_end(self, outs, name="loss", mode="train"):
         #errs = self.loss(outs["preds"], outs["target"])
@@ -129,7 +119,7 @@ class EnhancedLightningModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         _, y = batch
         preds, errs = self._step(batch, batch_idx)
-        outs = self._log_errs(errs)
+        outs = self._log_errs(errs, on_step=True)
         outs.update({"preds": preds, "target": y})
         return outs
 
