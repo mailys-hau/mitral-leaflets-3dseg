@@ -57,34 +57,38 @@ class EnhancedLightningModule(pl.LightningModule):
         return outs
 
 
-    def _update_metrics(self, outs, mode="train", log=True):
+    def _update_metrics(self, outs, mode="train"):
         # Not sure why but key "train" isn't allowed for an `nn.ModuleDict`
         #FIXME: Ever heard of `MetricCollection`?
         preds, y = outs["preds"], outs["target"]
         metrics = self.metrics[f"m{mode}"]
         on_step = True if mode == "test" else False
+        on_epoch = False if mode == "test" else True
+        # Distances are not computed for background, we need to set the indexes right
+        is_dist = lambda k: "hdf" in k or "masd" in k
         for k, m in metrics.items():
             try:
                 val = m(preds, y)
             except ValueError as err:
                 # Some metrics need int to compute, e.g. Dice
                 val = m(preds, y.to(torch.bool))
-            #FIXME: Load by steps for test
-            if val.numel() > 1:
-                #FIXME: Quite an ugly patch
-                idx = lambda i: i + 1 if k in ["v_hdf95", "v_masd"] else i
-                self.log_dict({f"{k}/{idx(i)}": val[i] for i in range(len(val))},
-                              on_epoch=True, on_step=on_step, sync_dist=True)
-            else:
-                self.log_dict({k: val}, on_epoch=True, on_step=on_step, sync_dist=True)
+            if val.shape == () and is_dist(k):
+                # Counter PyTorch automatic squeeze of scalars
+                val = val.unsqueeze(0) 
+            if val.shape == ():
+                self.log_dict({k: val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
+                continue
+            self.log_dict({f"{k}/{i + is_dist(k)}": val[i] for i in range(len(val))},
+                           on_epoch=on_epoch, on_step=on_step, sync_dist=True)
 
-    def _log_errs(self, errs, name="loss", on_step=False):
+
+    def _log_errs(self, errs, name="loss", on_step=False, on_epoch=True):
         if isinstance(errs, dict): # Used in VAE for example
             if 'v' in name:
                 errs = {f"v_{k}": v for k, v in errs.items()}
-            self.log_dict(errs, prog_bar=True, on_step=on_step, on_epoch=True)
+            self.log_dict(errs, prog_bar=True, on_step=on_step, on_epoch=on_epoch)
             return errs[name]
-        self.log(name, errs, prog_bar=True, on_step=on_step, on_epoch=True,
+        self.log(name, errs, prog_bar=True, on_step=on_step, on_epoch=on_epoch,
                  sync_dist=True)
         return {name: errs}
 
@@ -119,7 +123,7 @@ class EnhancedLightningModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         _, y = batch
         preds, errs = self._step(batch, batch_idx)
-        outs = self._log_errs(errs, on_step=True)
+        outs = self._log_errs(errs, on_step=True, on_epoch=False)
         outs.update({"preds": preds, "target": y})
         return outs
 
