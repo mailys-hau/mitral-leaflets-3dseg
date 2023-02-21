@@ -1,4 +1,5 @@
 import h5py
+import monai.transforms as mt
 import torch
 import torch.nn as nn
 
@@ -7,20 +8,24 @@ from pathlib import Path
 from torch import from_numpy as fnp
 from torch.utils.data import Dataset
 
+from data.transforms import NORMS, RESIZE
+
 
 
 class HDFDataset(Dataset):
     """ Load frame by frame from pre-processed HDF files """
     def __init__(self, data_dir, hdfnames, total_frames,
-                 norm=lambda x: x / 256, multiclass=False, cache=False):
+                 resize="by-classes", spatial_size=[128, 128, 128],
+                 norm="256", multiclass=False, cache=False, augmentation=False):
         super(HDFDataset, self).__init__()
+        keys = ["in", "out"]
         self.prefix = Path(data_dir).expanduser().resolve()
         self._setup_helpers(hdfnames)
         self.nb_frames = total_frames
-        #FIXME? Default norm as identity
-        #FIXME? Use a full transform instead of just norm
-        self.norm = norm #Expect callable
+        self.resize = RESIZE[resize](keys, spatial_size, multiclass=multiclass)
+        self.norm = NORMS[norm]
         self.multiclass = multiclass
+        self.augmentation = self._get_augment(keys) if augmentation else False
         self.cache = {} if cache else None
 
     def _setup_helpers(self, hdfnames):
@@ -33,6 +38,19 @@ class HDFDataset(Dataset):
             nb_frame_by_seq.append(d[1])
         self.cumulative_frame_len = list(accumulate(nb_frame_by_seq, initial=0))
 
+    def _get_augment(self, keys):
+        return mt.Compose([
+            mt.RandRotated(keys, range_x=5, range_y=5, range_z=5),
+            mt.RandAxisFlipd(keys)
+            #mt.RandGridDistortiond(keys),
+            # And many more...
+        ])
+
+
+    def _transform(self, inp, out, transform):
+        data = mt.apply_transform(transform, {"in": inp, "out": out})
+        return data["in"], data["out"]
+
 
     def _load_volume(self, i):
         #FIXME: Handle negative index
@@ -40,21 +58,20 @@ class HDFDataset(Dataset):
         frame_idx = i - self.cumulative_frame_len[seq_idx] + 1
         #FIXME: Bottleneck, find a way to bufferise some frames
         hdfile = h5py.File(self.get_path(seq_idx), 'r')
-        vin = fnp(hdfile["CartesianVolumes"][f"vol{frame_idx:02d}"][()]).to(torch.float)
-        ant = fnp(hdfile["Labels"][f"ant{frame_idx:02d}"][()]).to(torch.bool)
-        post = fnp(hdfile["Labels"][f"post{frame_idx:02d}"][()]).to(torch.bool)
+        vin = fnp(hdfile["CartesianVolume"][f"vol{frame_idx:02d}"][()])
+        ant = hdfile["GroundTruth"][f"anterior-{frame_idx:02d}"][()]
+        post = hdfile["GroundTruth"][f"posterior-{frame_idx:02d}"][()]
+        ant, post = fnp(ant).to(torch.bool), fnp(post).to(torch.bool)
         hdfile.close()
         if self.multiclass:
             #FIXME: Some voxel are in both ant & post class
             none = ~(ant | post)
-            #vout = nn.ModuleList([none, ant, post])
             vout = torch.stack([none, ant, post])
         else:
             leaflet = (ant | post)
             # This way is easier to handle both multiclass and binary class
-            #vout = nn.ModuleList([~leaflet, leaflet])
             vout = torch.stack([~leaflet, leaflet])
-        return vin, vout
+        return self.norm(vin), vout
 
     def get_path(self, i):
         return self.prefix.joinpath(self.fnames[i])
@@ -74,15 +91,18 @@ class HDFDataset(Dataset):
 
     def __getitem__(self, i):
         # If you run on a big enough machine, take advantage of it :3
-        if self.cache is None or i not in self.cache.keys():
+        if self.cache is not None and i in self.cache.keys():
+            vin, vout = self.cache[i]
+        else:
             vin, vout = self._load_volume(i)
-            vin = self.norm(vin) if self.norm else vin
             # Gray scale, i.e. 1 channel, need float to compute loss
             vin, vout = vin.unsqueeze(0), vout.to(torch.float)
-            if self.cache is None:
-                return vin, vout
-            self.cache[i] = (vin, vout)
-        return self.cache[i]
+            if self.cache is not None:
+                self.cache[i] = (vin, vout)
+        if self.augmentation: # Random so don't cache it
+            vin, vout = self._transform(vin, vout, self.augmentation)
+        # Can be random, so don't cache it
+        return self._transform(vin, vout, self.resize)
 
     def __len__(self):
         return self.nb_frames
