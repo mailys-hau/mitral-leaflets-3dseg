@@ -67,14 +67,13 @@ class EnhancedLightningModule(pl.LightningModule):
         # Distances are not computed for background, we need to set the indexes right
         is_dist = lambda k: "hdf" in k or "masd" in k
         for k, m in metrics.items():
-            try:
+            if is_dist(k):
                 val = m(preds, y)
-            except ValueError as err:
-                # Some metrics need int to compute, e.g. Dice
+                if val.shape == ():
+                    # Counter PyTorch automatic squeeze of scalars
+                    val = val.unsqueeze(0)
+            else: # Accuracies prefer booleans as target
                 val = m(preds, y.to(torch.bool))
-            if val.shape == () and is_dist(k):
-                # Counter PyTorch automatic squeeze of scalars
-                val = val.unsqueeze(0) 
             if val.shape == ():
                 self.log_dict({k: val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
                 continue
