@@ -15,9 +15,9 @@ class _Plot(EnhancedCallback):
         # As all info are the same for all frames of input, predictions and 
         # annotations, we extract it separately to not open the file repeatedly
         hdf = h5py.File(fname, 'r')
-        origin = hdf["ImageGeometry"]["origin"][()]
-        directions = hdf["ImageGeometry"]["directions"][()]
-        spacing = hdf["ImageGeometry"]["voxelsize"][()]
+        origin = hdf["VolumeGeometry"]["origin"][()]
+        directions = hdf["VoluneGeometry"]["directions"][()]
+        spacing = hdf["VolumeGeometry"]["resolution"][()]
         hdf.close()
         # Same order as required for ecv.VoxelGrid
         return origin, directions, spacing
@@ -79,7 +79,7 @@ class Plot4D(_Plot):
 
 
 class Plot4DSlice(_Plot):
-    def __init__(self, index=128, axis=1, dirpath=None):
+    def __init__(self, index=60, axis=1, dirpath=None):
         super(Plot4DSlice, self).__init__(dirpath)
         self.plotter = ecv.sliced_sequence
         self.index = index
