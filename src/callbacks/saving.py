@@ -46,29 +46,39 @@ class EnhancedModelCheckpoint(ModelCheckpoint):
 
 
 class SavePredictedSequence(EnhancedCallback):
-    def __init__(self, dirpath="~/Documents/outputs/3dmv-segmentation"):
-        #FIXME: Match wandb exp name
+    def __init__(self, dirpath=None):
         self.dirpath = dirpath
-
-    def on_predict_epoch_end(self, trainer, pl_module, outputs):
-        #FIXME? Handle several dataloader
-        #FIXME? Handle other than HDFDataset
-        #FIXME: Save voxel grid detail on option
-        #FIXME? Save alongside input??
-        #FIXME: Multiprocess + nice tqdm bar
-        all_frames = outputs[0]
-        dataset = trainer.predict_dataloaders[0].dataset
-        prev_nb_frames = 0
-        for i, fname in enumerate(dataset.fnames):
-            hdf = h5py.File(self.dirpath.joinpath(fname), 'w')
-            res = hdf.create_group("/Predictions")
-            nb_frames = dataset.cumulative_frame_len[i + 1] \
-                         - dataset.cumulative_frame_len[i]
-            for k in range(nb_frames):
-                out = all_frames[k + prev_nb_frames].squeeze().numpy()
-                res.create_dataset(f"vol{k + 1:02d}", data=out)
-            prev_nb_frames = nb_frames
-            hdf.close()
 
     def setup(self, trainer, pl_module, stage):
         self.resolve_dirpath(trainer, "predictions")
+
+    def on_predict_epoch_end(self, trainer, pl_module, outputs):
+        #FIXME? Handle several dataloader
+        #FIXME: Multiprocess + nice tqdm bar
+        dataset = trainer.predict_dataloaders[0].dataset
+        preds = outputs[0]
+        prev_nbf = 0
+        for i, (inp, tg) in enumerate(dataset.get_sequences()):
+            #FIXME: Also save voxel grid info
+            fname = dataset.get_path(i)
+            hdf = h5py.File(self.dirpath.joinpath(fname.name), 'w')
+            # Also save input/target since they're cropped
+            hin, htg = hdf.create_group("/Input"), hdf.create_group("/Target")
+            hpred = hdf.create_group("/Prediction")
+            nbf = len(inp)
+            for f in range(nbf):
+                # data is given as (B, C, W, H, D) and B = 1
+                hin.create_dataset(f"vol{f + 1:02d}",
+                                   data=inp[f].squeeze().numpy())
+                out = tg[f][0,1:].squeeze().numpy()
+                pred = preds[f + prev_nbf][0,1:].squeeze().numpy()
+                if pred.shape[0] > 1: # Multi class setting
+                    hpred.create_dataset(f"anterior-{f + 1:02d}", data=pred[0])
+                    hpred.create_dataset(f"posterior-{f + 1:02d}", data=pred[1])
+                    htg.create_dataset(f"anterior-{f + 1:02d}", data=out[0])
+                    htg.create_dataset(f"posterior-{f + 1:02d}", data=out[1])
+                else:
+                    hpred.create_dataset(f"vol{f + 1:02d}", data=pred)
+                    htg.create_dataset(f"vol{f + 1:02d}", data=out)
+            prev_nbf = nbf
+            hdf.close()
