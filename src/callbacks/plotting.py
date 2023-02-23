@@ -16,7 +16,7 @@ class _Plot(EnhancedCallback):
         # annotations, we extract it separately to not open the file repeatedly
         hdf = h5py.File(fname, 'r')
         origin = hdf["VolumeGeometry"]["origin"][()]
-        directions = hdf["VoluneGeometry"]["directions"][()]
+        directions = hdf["VolumeGeometry"]["directions"][()]
         spacing = hdf["VolumeGeometry"]["resolution"][()]
         hdf.close()
         # Same order as required for ecv.VoxelGrid
@@ -79,7 +79,7 @@ class Plot4D(_Plot):
 
 
 class Plot4DSlice(_Plot):
-    def __init__(self, index=60, axis=1, dirpath=None):
+    def __init__(self, index=44, axis=1, dirpath=None):
         super(Plot4DSlice, self).__init__(dirpath)
         self.plotter = ecv.sliced_sequence
         self.index = index
