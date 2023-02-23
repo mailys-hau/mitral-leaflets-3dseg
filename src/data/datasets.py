@@ -83,8 +83,8 @@ class HDFDataset(Dataset):
             # NumBer of Frames
             nbf = self.cumulative_frame_len[i + 1] - self.cumulative_frame_len[i]
             for j in range(nbf):
-                tmp = self._load_volume(i + j)
-                vins.append(tmp[0]), vouts.append(tmp[1])
+                vin, vout = self[i + j] # Resize should be "center" for test
+                vins.append(vin), vouts.append(vout)
             yield vins, vouts
             prev_nbf = nbf
 
