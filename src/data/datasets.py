@@ -16,7 +16,8 @@ class HDFDataset(Dataset):
     """ Load frame by frame from pre-processed HDF files """
     def __init__(self, data_dir, hdfnames, total_frames,
                  resize="by-classes", spatial_size=[128, 128, 128],
-                 norm="256", multiclass=False, cache=False, augmentation=False):
+                 norm="256", contrast=None, multiclass=False, cache=False,
+                 augmentation=False):
         super(HDFDataset, self).__init__()
         keys = ["in", "out"]
         self.prefix = Path(data_dir).expanduser().resolve()
@@ -27,6 +28,7 @@ class HDFDataset(Dataset):
         self.multiclass = multiclass
         self.augmentation = self._get_augment(keys) if augmentation else False
         self.cache = {} if cache else None
+        self.contrast = mt.AdjustContrast(contrast) if contrast is not None else None
 
     def _setup_helpers(self, hdfnames):
         self.fnames = []
@@ -97,6 +99,8 @@ class HDFDataset(Dataset):
             vin, vout = self._load_volume(i)
             # Gray scale, i.e. 1 channel, need float to compute loss
             vin, vout = vin.unsqueeze(0), vout.to(torch.float)
+            if self.contrast is not None:
+                vin = self.contrast(vin)
             if self.cache is not None:
                 self.cache[i] = (vin, vout)
         if self.augmentation: # Random so don't cache it
