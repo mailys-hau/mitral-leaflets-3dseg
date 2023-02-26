@@ -42,8 +42,12 @@ class HDFDataset(Dataset):
 
     def _get_augment(self, keys):
         return mt.Compose([
+            # Move around (input, target)
             mt.RandRotated(keys, range_x=5, range_y=5, range_z=5),
-            mt.RandAxisFlipd(keys)
+            mt.RandAxisFlipd(keys),
+            # Add noise to input
+            mt.RandGaussianNoised(keys[0]),
+            mt.RandGridDistortiond(keys[0])
             #mt.RandGridDistortiond(keys),
             # And many more...
         ])
