@@ -26,7 +26,7 @@ class DiceEntropyLoss(nn.modules.loss._WeightedLoss):
     def forward(self, pred, target):
         dice = self.dice_loss(pred, target)
         xentropy = self.xentropy_loss(pred, target)
-        return (self.weight[0] * dice + self.weight[1] * xentropy) / 2
+        return self.weight[0] * dice + self.weight[1] * xentropy
 
 class DiceFocalLoss(nn.modules.loss._WeightedLoss):
     """ Combine Dice score and CrossEntropy as loss """
@@ -45,5 +45,5 @@ class DiceFocalLoss(nn.modules.loss._WeightedLoss):
     def forward(self, pred, target):
         dice = self.dice_loss(pred, target)
         focal = self.focal_loss(pred, target)
-        return (self.weight[0] * dice + self.weight[1] * focal) / 2
+        return self.weight[0] * dice + self.weight[1] * focal
 
