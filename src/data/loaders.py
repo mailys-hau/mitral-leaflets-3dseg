@@ -18,6 +18,8 @@ def load_data(name, test=False, debug=False, **kwargs):
         if debug:
             testset = DummyDataset(3)
         else:
+            # Fix those outside of training
+            kwdataset["resize"], kwdataset["augmentation"] = "center", False
             testset = dataset(prefix, files["test"]["files"],
                               files["test"]["total_frames"], **kwdataset)
         return DataLoader(testset, **kwargs)
@@ -28,6 +30,8 @@ def load_data(name, test=False, debug=False, **kwargs):
         else:
             trainset = dataset(prefix, files["train"]["files"],
                                files["train"]["total_frames"], **kwdataset)
+            # Fix those outside of training
+            kwdataset["resize"], kwdataset["augmentation"] = "center", False
             valset = dataset(prefix, files["validation"]["files"],
                              files["validation"]["total_frames"], **kwdataset)
         trainloader = DataLoader(trainset, batch_size=bs, shuffle=True, **kwargs)
