@@ -11,7 +11,7 @@ class MonaiMetric(Metric):
     """ We mimic `torchmetrics.classification`, to have per class results """
     is_differentiable = False
     higher_is_better = False
-    full_state_update = False # Whether batches are dependant from each other
+    full_state_update = None
     def __init__(self, include_background=False, distance_metric="euclidean",
                  reduction="mean", multidim_average="global"):
         super(MonaiMetric, self).__init__()
@@ -21,20 +21,10 @@ class MonaiMetric(Metric):
         self.multidim_average = multidim_average
 
     def _create_state(self, size=1):
-        if self.multidim_average == "samplewise":
-            default = lambda: []
-            reduce_fx = "cat"
-        else:
-            default = lambda: torch.zeros(size, dtype=torch.float)
-            reduce_fx = "sum"
-        self.add_state(self.name, default=default(), dist_reduce_fx=reduce_fx)
+        self.add_state(self.name, default=[], dist_reduce_fx="cat")
 
     def _update_state(self, val):
-        if self.multidim_average == "samplewise":
-            self.__getattribute__(self.name).append(val)
-        else:
-            prev = self.__getattribute__(self.name)
-            setattr(self, self.name, prev + val)
+        self.__getattribute__(self.name).append(val)
 
     def _final_state(self):
         """ Final aggregation in case of list states. """
