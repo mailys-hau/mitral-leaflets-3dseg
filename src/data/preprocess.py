@@ -52,7 +52,7 @@ def build_dataset(pdata, rtrain, rval, rtest, ofname):
             print(f"Ignoring {fname.name}, not an HDF.")
             continue
         hdf = h5py.File(fname, 'r')
-        data.append([fname.name, int(hdf["ImageGeometry"]["frameNumber"][()])])
+        data.append([fname.name, int(hdf["VolumeGeometry"]["frameNumber"][()])])
         hdf.close()
     # Split into train/validation/test sets
     rd.shuffle(data)
