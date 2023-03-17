@@ -43,10 +43,9 @@ def main(ctx, config_file, debug):
 def train(ctx): # FIX
     """ The eye of the tiger """
     config = deepcopy(ctx.obj["config"])
-    debug = True if ctx.obj["group"] == "debug" else False
     print("Loading data...")
     cdata = config["data"]
-    trloader, valoader = load_data(cdata["dataset"].pop("name"), debug=debug, **cdata)
+    trloader, valoader = load_data(cdata["dataset"].pop("name"), **cdata)
     print("Building network...")
     cnet = config["network"]
     net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
@@ -78,10 +77,9 @@ def train(ctx): # FIX
 def test(ctx, eval_net, predict):
     """ Let's see if your network work """
     config = deepcopy(ctx.obj["config"])
-    debug = True if ctx.obj["group"] == "debug" else False
     print("Loading data...")
     cdata = config["data"]
-    teloader = load_data(cdata["dataset"].pop("name"), test=True, debug=debug, **cdata)
+    teloader = load_data(cdata["dataset"].pop("name"), test=True, **cdata)
     print("Building network...")
     cnet = config["network"]
     if not "weights" in cnet:
@@ -100,7 +98,7 @@ def test(ctx, eval_net, predict):
     tester = Trainer(logger=wandblog, **config["tester"],
                      max_epochs=-1, # Remove warning
                      callbacks=[SavePredictedSequence(), Plot3DSlice(),
-                                Plot4DSlice(), Plot4D()])
+                                Plot4DSlice(), Plot4d()])
     #FIXME: Do the same thing twice, inneficient
     if eval_net:
         tester.test(net, teloader)

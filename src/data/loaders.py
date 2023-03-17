@@ -2,38 +2,39 @@ import torch
 
 from torch.utils.data import DataLoader
 
-from data.datasets import DummyDataset, HDFDataset
+from data.datasets import *
 
 
-_datasets = {"HDFDataset": HDFDataset}
+_datasets = {"DummyDataset": DummyDataset,
+             "FrameDataset": FrameDataset,
+             "MiddleFrameDataset": MiddleFrameDataset,
+             "SequenceDataset": SequenceDataset}
 
 
 
-def load_data(name, test=False, debug=False, **kwargs):
+def load_data(name, test=False, **kwargs):
     kwdataset = kwargs.pop("dataset")
-    dataset = _datasets[name]
-    prefix = kwdataset.pop("prefix")
-    files = kwdataset.pop("files")
-    if test:
-        if debug:
-            testset = DummyDataset(3)
+    if name == "DummyDataset": # Debug case
+        nb_dummies = kwdataset.pop("nb_dummies", 10)
+        if test:
+            testset = DummyDataset(3, **kwdataset)
+            return DataLoader(testset, **kwargs)
         else:
-            # Fix those outside of training
+            trainset = DummyDataset(nb_dummies, **kwdataset)
+            valset = DummyDataset(3, **kwdataset)
+    else: # Usual case
+        dataset = _datasets[name]
+        prefix, files = kwdataset.pop("prefix"), kwdataset.pop("files")
+        if test:
+            # Fix non-random values outside training
             kwdataset["resize"], kwdataset["augmentation"] = "center", False
-            testset = dataset(prefix, files["test"]["files"],
-                              files["test"]["total_frames"], **kwdataset)
-        return DataLoader(testset, **kwargs)
-    else:
-        bs = kwargs.pop("batch_size", 16)
-        if debug:
-            trainset, valset = DummyDataset(10), DummyDataset(3)
+            testset = dataset(prefix, files["test"]["files"], **kwdataset)
+            return DataLoader(testset, **kwargs)
         else:
-            trainset = dataset(prefix, files["train"]["files"],
-                               files["train"]["total_frames"], **kwdataset)
-            # Fix those outside of training
+            trainset = dataset(prefix, files["train"]["files"], **kwdataset)
+            # Fix non-random values outside training
             kwdataset["resize"], kwdataset["augmentation"] = "center", False
-            valset = dataset(prefix, files["validation"]["files"],
-                             files["validation"]["total_frames"], **kwdataset)
-        trainloader = DataLoader(trainset, batch_size=bs, shuffle=True, **kwargs)
-        valloader = DataLoader(valset, batch_size=bs, **kwargs)
-        return trainloader, valloader
+            valset = dataset(prefix, files["validation"]["files"], **kwdataset)
+    trainloader = DataLoader(trainset, shuffle=True, **kwargs)
+    valloader = DataLoader(valset, **kwargs)
+    return trainloader, valloader
