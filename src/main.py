@@ -25,7 +25,7 @@ seed_everything(404)
 @cli.option("-c", "--config-file", type=cli.Path(exists=True), default=None,
             help="YML to configure called command.")
 @cli.option("--debug", is_flag=True,
-            help="Put results in Debug DB of WandBFlow.")
+            help="Put results in Debug DB of WandBias.")
 @cli.pass_context
 def main(ctx, config_file, debug):
     with open(f"../config/default-{ctx.invoked_subcommand}.yml", 'r') as fd:
@@ -70,16 +70,17 @@ def train(ctx): # FIX
 
 @main.command(name="test", short_help="Testing.")
 @cli.option("--eval/--no-eval", "eval_net", is_flag=True, default=True,
-            help="Do an evaluation run of the given network.")
+            help="Only save metrics' results.")
 @cli.option("--predict/--no-predict", is_flag=True, default=False,
-            help="Predict on given dataset with given network.")
+            help="Save predictions plus some nice plots. ")
 @cli.pass_context
 def test(ctx, eval_net, predict):
-    """ Let's see if your network work """
+    """ Do an evaluation run for a given trained network and dataset """
     config = deepcopy(ctx.obj["config"])
     print("Loading data...")
     cdata = config["data"]
-    teloader = load_data(cdata["dataset"].pop("name"), test=True, **cdata)
+    dataset_name = cdata["dataset"].pop("name")
+    teloader = load_data(dataset_name, test=True, **cdata)
     print("Building network...")
     cnet = config["network"]
     if not "weights" in cnet:
@@ -95,17 +96,20 @@ def test(ctx, eval_net, predict):
                            save_dir=str(logdir))
     # Save full testing config (before testing in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
+    callbacks = [SavePredictedSequence()]
+    if "Frame" in dataset_name:
+        callbacks.extend([Plot3D(), SlicePlot(), SlicePlot(axis=1),
+                          SliceVolumePlot(), SliceVolumePlot(axis=1)])
+    elif "Sequence" in dataset_name:
+        callbacks.extend([SliceSequencePlot(), SliceSequencePlot(axis=1),
+                          SliceVolumePlot(), SliceVolumePlot(axis=1),
+                          Plot4D()])
+
     tester = Trainer(logger=wandblog, **config["tester"],
                      max_epochs=-1, # Remove warning
-                     callbacks=[SavePredictedSequence(),
-                                # One frame per plot
-                                Plot3D(), SlicePlot(), SlicePlot(axis=1),
-                                # Animated plots
-                                SliceSequencePlot(), SliceSequencePlot(axis=1),
-                                SliceVolumePlot(), SliceVolumePlot(axis=1),
-                                Plot4D()])
-    #FIXME: Do the same thing twice, inneficient
+                     callbacks=callbacks)
     if eval_net:
+        # NB: Callbacks are only called with --predict
         tester.test(net, teloader)
     if predict:
         foo = tester.predict(net, teloader)
