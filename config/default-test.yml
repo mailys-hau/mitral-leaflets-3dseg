@@ -1,10 +1,11 @@
 data:
   # We only have one dataset anyway
   dataset:
-    name: HDFDataset
+    name: MiddleFrameDataset
     prefix: "~/Documents/data/"
-    # FIXME: Consider separate file for train/test/val?
     files: !include "~/Documents/data/data-split.yml"
+    resize: "center"
+    contrast: 2
   num_workers: 4
 
 network:
