@@ -50,7 +50,7 @@ def train(ctx): # FIX
     cnet = config["network"]
     net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
     # TODO? Match loggdir with checkpoint dir
-    logdir = Path("../outputs").resolve()
+    logdir = Path("~/Documents/outputs/3d-closed-mv_seg").expanduser().resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
     # Patch to get WandB names in pytorch_lightning logger since 1.7
@@ -61,7 +61,7 @@ def train(ctx): # FIX
     # Save full training config (before training in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
     callbacks = [EnhancedModelCheckpoint(monitor="v_loss"),
-                 EarlyStopping("v_loss", patience=5),
+                 #EarlyStopping("v_loss", patience=5),
                  LearningRateMonitor("step")]
     trainer = Trainer(callbacks=callbacks, logger=wandblog, **config["trainer"])
     print("Training...")
@@ -85,7 +85,7 @@ def test(ctx, eval_net, predict):
     if not "weights" in cnet:
         raise UserWarning("No weights were given for the network. Results will be random.")
     net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
-    logdir = Path("../outputs").resolve()
+    logdir = Path("~/Documents/outputs/3d-closed-mv_seg").expanduser().resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
     # Patch to get WandB names in pytorch_lightning logger since 1.7
@@ -97,8 +97,13 @@ def test(ctx, eval_net, predict):
     wandblog.experiment.config.update(ctx.obj["config"])
     tester = Trainer(logger=wandblog, **config["tester"],
                      max_epochs=-1, # Remove warning
-                     callbacks=[SavePredictedSequence(), Plot3DSlice(),
-                                Plot4DSlice(), Plot4d()])
+                     callbacks=[SavePredictedSequence(),
+                                # One frame per plot
+                                Plot3D(), SlicePlot(), SlicePlot(axis=1),
+                                # Animated plots
+                                SliceSequencePlot(), SliceSequencePlot(axis=1),
+                                SliceVolumePlot(), SliceVolumePlot(axis=1),
+                                Plot4D()])
     #FIXME: Do the same thing twice, inneficient
     if eval_net:
         tester.test(net, teloader)

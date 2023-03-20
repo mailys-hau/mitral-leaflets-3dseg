@@ -52,33 +52,44 @@ class SavePredictedSequence(EnhancedCallback):
     def setup(self, trainer, pl_module, stage):
         self.resolve_dirpath(trainer, "predictions")
 
+    def add_voxinfo(self, fname, hdf):
+        origin, directions, spacing = self.get_voxinfo(fname)
+        info = hdf.create_group("/VolumeGeometry")
+        info.create_dataset("origin", data=origin)
+        info.create_dataset("directions", data=directions)
+        info.create_dataset("resolution", data=spacing)
+
     def on_predict_epoch_end(self, trainer, pl_module, outputs):
         #FIXME? Handle several dataloader
         #FIXME: Multiprocess + nice tqdm bar
         dataset = trainer.predict_dataloaders[0].dataset
         preds = outputs[0]
         prev_nbf = 0
-        for i, (inp, tg) in enumerate(dataset.get_sequences()):
-            #FIXME: Also save voxel grid info
-            fname = dataset.get_path(i)
+        for iseq in range(dataset.nb_sequences):
+            inp, tg = dataset.get_sequence(iseq)
+            nbf = len(inp)
+            # Remove background and select proper frames
+            tg = [ t[1:] for t in tg ]
+            pred = [ p[0, 1:] for p in preds[prev_nbf:nbf + prev_nbf] ]
+            fname = dataset.get_path(iseq)
             hdf = h5py.File(self.dirpath.joinpath(fname.name), 'w')
+            self.add_voxinfo(fname, hdf)
             # Also save input/target since they're cropped
             hin, htg = hdf.create_group("/Input"), hdf.create_group("/Target")
             hpred = hdf.create_group("/Prediction")
-            nbf = len(inp)
             for f in range(nbf):
                 # data is given as (B, C, W, H, D) and B = 1
                 hin.create_dataset(f"vol{f + 1:02d}",
                                    data=inp[f].squeeze().numpy())
-                out = tg[f][0,1:].squeeze().numpy()
-                pred = preds[f + prev_nbf][0,1:].squeeze().numpy()
-                if pred.shape[0] > 1: # Multi class setting
-                    hpred.create_dataset(f"anterior-{f + 1:02d}", data=pred[0])
-                    hpred.create_dataset(f"posterior-{f + 1:02d}", data=pred[1])
-                    htg.create_dataset(f"anterior-{f + 1:02d}", data=out[0])
-                    htg.create_dataset(f"posterior-{f + 1:02d}", data=out[1])
+                ftg = tg[f].squeeze().numpy()
+                fpr = pred[f].squeeze().numpy()
+                if fpr.shape[0] > 1: # Multi class setting
+                    hpred.create_dataset(f"anterior-{f + 1:02d}", data=fpr[0])
+                    hpred.create_dataset(f"posterior-{f + 1:02d}", data=fpr[1])
+                    htg.create_dataset(f"anterior-{f + 1:02d}", data=ftg[0])
+                    htg.create_dataset(f"posterior-{f + 1:02d}", data=ftg[1])
                 else:
-                    hpred.create_dataset(f"vol{f + 1:02d}", data=pred)
-                    htg.create_dataset(f"vol{f + 1:02d}", data=out)
+                    hpred.create_dataset(f"vol{f + 1:02d}", data=fpr)
+                    htg.create_dataset(f"vol{f + 1:02d}", data=ftg)
             prev_nbf = nbf
             hdf.close()

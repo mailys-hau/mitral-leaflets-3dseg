@@ -1,6 +1,5 @@
 import h5py
 
-from echoviz import VoxelGrid
 from pathlib import Path
 from pytorch_lightning.callbacks import Callback
 
@@ -10,6 +9,18 @@ class EnhancedCallback(Callback):
     """ Add a few functionnalities that are going to be used repeatedly in this project """
     def __init__(self):
         super(EnhancedCallback, self).__init__()
+
+    def get_voxinfo(self, fname):
+        # Get additionnal informations on voxel grid
+        # As all info are the same for all frames of input, predictions and 
+        # annotations, we extract it separately to not open the file repeatedly
+        hdf = h5py.File(fname, 'r')
+        origin = hdf["VolumeGeometry"]["origin"][()]
+        directions = hdf["VolumeGeometry"]["directions"][()]
+        spacing = hdf["VolumeGeometry"]["resolution"][()]
+        hdf.close()
+        # Same order as required for VoxelGrid
+        return origin, directions, spacing
 
     def resolve_dirpath(self, trainer, category):
         """ Solve saving directory if not default """
