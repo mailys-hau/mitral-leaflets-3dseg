@@ -41,7 +41,7 @@ class _HDFDataset(Dataset):
             nbf_per_seq.append(d[1])
         self.cumulative_nbf = list(accumulate(nbf_per_seq, initial=0))
 
-    def _define_augmentions(self, keys):
+    def _define_augmentations(self, keys):
         return mt.Compose([
             # Move around (input, target)
             mt.RandRotated(keys, range_x=5, range_y=5, range_z=5),
