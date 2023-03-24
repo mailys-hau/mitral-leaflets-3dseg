@@ -11,7 +11,8 @@ class SwinUNETR(EnhancedLightningModule):
     def __init__(self,
                  # EnhancedLightningModule parameters
                  loss=nn.BCELoss(), optimizer={"name": "Adam", "params": {}},
-                 lr_scheduler=True, final_activation=nn.Softmax(dim=1), metrics=[],
+                 lr_scheduler=True, final_activation=nn.Softmax(dim=1),
+                 postprocess=None, metrics=[],
                  # Monai's SwinUNETR parameters
                  img_size=(256, 256, 256), in_channels=1, out_channels=2,
                  depths=(2, 2, 2, 2), num_heads=(3, 6, 12, 24), feature_size=24,
@@ -20,7 +21,8 @@ class SwinUNETR(EnhancedLightningModule):
                  spatial_dims=3, downsample="merging"):
         super(SwinUNETR, self).__init__(
                 loss=loss, optimizer=optimizer, lr_scheduler=lr_scheduler,
-                final_activation=final_activation, metrics=metrics
+                final_activation=final_activation, postprocess=postprocess,
+                metrics=metrics
                 )
         self.model = mnn.SwinUNETR(
                 img_size, in_channels, out_channels, depths=depths,
@@ -40,7 +42,8 @@ class UNETR(EnhancedLightningModule):
     def __init__(self,
                  # EnhancedLightningModule parameters
                  loss=nn.BCELoss(), optimizer={"name": "Adam", "params": {}},
-                 lr_scheduler=True, final_activation=nn.Softmax(dim=1), metrics=[],
+                 lr_scheduler=True, final_activation=nn.Softmax(dim=1),
+                 postprocess=None, metrics=[],
                  # Monai's UNETR parameters
                  in_channels=1, out_channels=2, img_size=(256, 256, 256),
                  feature_size=16, hidden_size=768, mlp_dim=3072, num_heads=12,
@@ -49,7 +52,8 @@ class UNETR(EnhancedLightningModule):
                  ):
         super(UNETR, self).__init__(
                 loss=loss, optimizer=optimizer, lr_scheduler=lr_scheduler,
-                final_activation=final_activation, metrics=metrics
+                final_activation=final_activation, postprocess=postprocess,
+                metrics=metrics
                 )
         self.model = mnn.UNETR(
                 in_channels, out_channels, img_size, feature_size=feature_size,

@@ -1,5 +1,5 @@
 """
-Modeled after `monai.transforms.utils.remove_small_objects`
+Model after `monai.transforms.utils.remove_small_objects`
 """
 import numpy as np
 import torch
@@ -13,6 +13,7 @@ from scipy.ndimage import binary_fill_holes, grey_closing
 def close_and_fill(vol, size=(3, 3, 3), footprint=None, structure=None,
                    mode="reflect", cval=0, origin=0, threshold=0.5,
                    ignore_background=True):
+    # Receive (C, W, H, D) shape, C number of classes
     if len(unique(vol)) == 1:
         return vol # If all equal to one value, no need to call skimage
     filtered = torch.where(vol >= threshold, vol, 0)
@@ -34,6 +35,7 @@ def close_and_fill(vol, size=(3, 3, 3), footprint=None, structure=None,
 
 def closing(vol, size=(3, 3, 3), footprint=None, structure=None, mode="reflect",
             cval=0, origin=0, ignore_background=True):
+    # Receive (C, W, H, D) shape, C number of classes
     if len(unique(vol)) == 1:
         return vol # If all equal to one value, no need to call skimage
     vol_np, *_ = convert_data_type(vol, np.ndarray)
@@ -51,6 +53,7 @@ def closing(vol, size=(3, 3, 3), footprint=None, structure=None, mode="reflect",
 
 def fill_holes(vol, structure=None, output=None, origin=0,
                ignore_background=True):
+    # Receive (C, W, H, D) shape, C number of classes
     if len(unique(vol)) == 1:
         return vol # If all equal to one value, no need to call skimage
     vol_np, *_ = convert_data_type(vol, np.ndarray)

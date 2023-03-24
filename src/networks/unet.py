@@ -9,7 +9,8 @@ class UNet(EnhancedLightningModule):
     def __init__(self,
                  # EnhancedLightningModule parameters
                  loss=nn.BCELoss(), optimizer={"name": "Adam", "params": {}},
-                 lr_scheduler=True, final_activation=nn.Softmax(dim=1), metrics=[],
+                 lr_scheduler=True, final_activation=nn.Softmax(dim=1),
+                 postprocess=None, metrics=[],
                  # Monai's BasicUNet parameters
                  spatial_dims=3, in_channels=1, out_channels=1,
                  features=(16, 16, 32, 64, 128, 16),
@@ -18,7 +19,8 @@ class UNet(EnhancedLightningModule):
                  upsample="deconv"):
         super(UNet, self).__init__(
                 loss=loss, optimizer=optimizer, lr_scheduler=lr_scheduler,
-                final_activation=final_activation, metrics=metrics
+                final_activation=final_activation, postprocess=postprocess,
+                metrics=metrics
                 )
         self.model = mnn.BasicUNet(
                 spatial_dims=spatial_dims, in_channels=in_channels,
@@ -34,7 +36,8 @@ class ResUNet(EnhancedLightningModule):
     def __init__(self,
                  # EnhancedLightningModule parameters
                  loss=nn.BCELoss(), optimizer={"name": "Adam", "params": {}},
-                 lr_scheduler=True, final_activation=nn.Softmax(dim=1), metrics=[],
+                 lr_scheduler=True, final_activation=nn.Softmax(dim=1),
+                 postprocess=None, metrics=[],
                  # Monai's UNet arguments
                  spatial_dims=3, in_channels=1, out_channels=1,
                  channels=(16, 32, 64, 128, 256), strides=(2, 2, 2, 2), kernel_size=3,
@@ -42,7 +45,8 @@ class ResUNet(EnhancedLightningModule):
                  dropout=0, bias=True, adn_ordering="NDA"):
         super(ResUNet, self).__init__(
                 loss=loss, optimizer=optimizer, lr_scheduler=lr_scheduler,
-                final_activation=final_activation, metrics=metrics
+                final_activation=final_activation, postprocess=postprocess,
+                metrics=metrics
                 )
         self.model = mnn.UNet(
                 spatial_dims, in_channels, out_channels, channels, strides,

@@ -6,19 +6,23 @@ import torch.nn as nn
 import torch.optim as optim
 import torchmetrics
 
+from data import POSTPROCESS
 from metrics import MONAI_METRICS
 from utils import LinearCosineLR
 
 
 
 class EnhancedLightningModule(pl.LightningModule):
-    def __init__(self, loss=nn.MSELoss(), optimizer={"name": "Adam", "params": {}},
-                 lr_scheduler=True, final_activation=nn.Softmax(dim=1),
+    def __init__(self, loss=nn.MSELoss(),
+                 optimizer={"name": "Adam", "params": {}}, lr_scheduler=True,
+                 final_activation=nn.Softmax(dim=1), postprocess=None,
                  metrics=[]):
         super(EnhancedLightningModule, self).__init__()
         self.loss = loss
         self.optimizer_config = optimizer
         self.lr_scheduler = lr_scheduler
+        self.final_activation = final_activation
+        self.postprocess = POSTPROCESS.get(postprocess, None)
         self._init_metrics(metrics)
         self.final_activation = final_activation
 
@@ -30,6 +34,9 @@ class EnhancedLightningModule(pl.LightningModule):
         self.metrics = nn.ModuleDict({"mtrain": nn.ModuleDict(),
                                       "mval": nn.ModuleDict(),
                                       "mtest": nn.ModuleDict()})
+        if self.postprocess:
+            self.metrics.update({"pmval": nn.ModuleDict(),
+                                 "pmtest": nn.ModuleDict()})
         def build_metric(name, *args, **kwargs):
             return all_metrics[name](*args, **kwargs)
         for m in metrics:
@@ -38,8 +45,9 @@ class EnhancedLightningModule(pl.LightningModule):
                     # Monai computes with `np.array` so use with parsimony
                     continue
                 metric = build_metric(m["name"], *m.get("args", []), **m.get("kwargs", {}))
-                display_name = f"v_{m['display_name']}" if mode == "mval" \
-                               else m["display_name"]
+                v = 'v' if "val" in mode else ''
+                p = 'p' if 'p' in mode else '' # Postprocess
+                display_name = f"{p}{v}_{m['display_name']}".strip('_')
                 self.metrics[mode].update({display_name: metric})
 
 
@@ -51,22 +59,26 @@ class EnhancedLightningModule(pl.LightningModule):
         return sout, self.loss(out, y)
 
     def _step_end(self, outs, name="loss", mode="train"):
-        #errs = self.loss(outs["preds"], outs["target"])
         outs[name] = outs[name].mean()
+        if mode != "train" and self.postprocess:
+            # Shape is (B, C, W, H, D)
+            ppreds = []
+            for elt in outs["preds"]: # Apply element wise in the batch
+                ppreds.append(self.postprocess(elt))
+            outs["ppreds"] = torch.stack(ppreds)
         self._update_metrics(outs, mode)
         return outs
 
 
     def _update_metrics(self, outs, mode="train"):
-        # Not sure why but key "train" isn't allowed for an `nn.ModuleDict`
-        #FIXME: Ever heard of `MetricCollection`?
+        # "train" key isn't allowed for an `nn.ModuleDict`
         preds, y = outs["preds"], outs["target"]
         metrics = self.metrics[f"m{mode}"]
         on_step = True if mode == "test" else False
         on_epoch = False if mode == "test" else True
         # Distances are not computed for background, we need to set the indexes right
         is_dist = lambda k: "hdf" in k or "masd" in k
-        for k, m in metrics.items():
+        def do_update(k, m):
             if is_dist(k):
                 val = m(preds, y)
                 if val.shape == ():
@@ -76,9 +88,16 @@ class EnhancedLightningModule(pl.LightningModule):
                 val = m(preds, y.to(torch.bool))
             if val.shape == ():
                 self.log_dict({k: val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
-                continue
+                return
             self.log_dict({f"{k}/{i + is_dist(k)}": val[i] for i in range(len(val))},
                            on_epoch=on_epoch, on_step=on_step, sync_dist=True)
+        for k, m in metrics.items():
+            do_update(k, m)
+        if "ppreds" in outs.keys():
+            # Re-compute for post-processed predictions
+            metrics, preds = self.metrics[f"pm{mode}"], outs["ppreds"]
+            for k, m in metrics.items():
+                do_update(k, m)
 
 
     def _log_errs(self, errs, name="loss", on_step=False, on_epoch=True):
@@ -129,6 +148,10 @@ class EnhancedLightningModule(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         _, y = batch
         preds, _ = self._step(batch, batch_idx)
+        if self.postprocess:
+            # Shape is (B, C, W, H, D)
+            for i in range(len(preds)): # Apply element wise in the batch
+                preds[i] = self.postprocess(preds[i])
         return preds
 
 
