@@ -16,6 +16,8 @@ network:
     # Torchmetrics
     - display_name: dice
       name: Dice
+      kwargs:
+        ignore_index: 0
     # Monai's metrics
     - display_name: hdf95
       name: HausdorffDistance95
