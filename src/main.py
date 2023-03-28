@@ -50,13 +50,15 @@ def train(ctx): # FIX
     cnet = config["network"]
     net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
     # TODO? Match loggdir with checkpoint dir
-    logdir = Path("~/Documents/outputs/3d-closed-mv_seg").expanduser().resolve()
+    logdir = Path("~/Documents/outputs").expanduser().resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
     # Patch to get WandB names in pytorch_lightning logger since 1.7
-    wandb.init(project="3DMV-segmentation", group=ctx.obj["group"], job_type="train")
-    wandblog = WandbLogger(project="3DMV-segmentation", group=ctx.obj["group"],
-                           name=wandb.run.name, job_type="train", entity="tee-4d",
+    multi = "multi-" if trloader.dataset.multiclass else ''
+    kwwandb = dict(project=f"3DMV-{multi}segmentation", group=ctx.obj["group"],
+                   job_type="train")
+    wandb.init(**kwwandb)
+    wandblog = WandbLogger(**kwwandb, name=wandb.run.name, entity="tee-4d",
                            save_dir=str(logdir))
     # Save full training config (before training in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
@@ -86,13 +88,15 @@ def test(ctx, eval_net, predict):
     if not "weights" in cnet:
         raise UserWarning("No weights were given for the network. Results will be random.")
     net = build_model(cnet.pop("name"), cnet.pop("loss"), cnet.pop("optimizer"), **cnet)
-    logdir = Path("~/Documents/outputs/3d-closed-mv_seg").expanduser().resolve()
+    logdir = Path("~/Documents/outputs").expanduser().resolve()
     logdir.mkdir(exist_ok=True) # Create if non-existent
     #TODO: Add tag to logger
     # Patch to get WandB names in pytorch_lightning logger since 1.7
-    wandb.init(project="3DMV-segmentation", group=ctx.obj["group"], job_type="eval")
-    wandblog = WandbLogger(project="3DMV-segmentation", group=ctx.obj["group"],
-                           name=wandb.run.name, job_type="eval", entity="tee-4d",
+    multi = "multi-" if teloader.dataset.multiclass else ''
+    kwwandb = dict(project=f"3DMV-{multi}segmentation", group=ctx.obj["group"],
+                   job_type="eval")
+    wandb.init(**kwwandb)
+    wandblog = WandbLogger(**kwwandb, name=wandb.run.name, entity="tee-4d",
                            save_dir=str(logdir))
     # Save full testing config (before testing in case of crash)
     wandblog.experiment.config.update(ctx.obj["config"])
@@ -112,7 +116,7 @@ def test(ctx, eval_net, predict):
         # NB: Callbacks are only called with --predict
         tester.test(net, teloader)
     if predict:
-        foo = tester.predict(net, teloader)
+        tester.predict(net, teloader)
 
 
 
