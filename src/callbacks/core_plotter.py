@@ -46,7 +46,7 @@ class Plotter(EnhancedCallback):
             fname = self.dirpath.joinpath(dataset.fnames[iseq])
             # Go down to children to plotter for the detail
             self.do_plot(vin, vtg, vpred, fname)
-            prev_nbf = nbf
+            prev_nbf += nbf
 
 
 class SlicePlotter(Plotter):
