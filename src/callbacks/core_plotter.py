@@ -21,12 +21,18 @@ class Plotter(EnhancedCallback):
 
     def to_dict(self, data):
         # Get ready before calling echoviz, some data need to be dict like
-        if isinstance(data, list):
-            if self.by_frame or isinstance(data[0], VoxelGrid):
+        if self.by_frame: # Frame case
+            if isinstance(data, list): # Multi segmentation case
                 return {"anterior": data[0], "posterior": data[1]}
+            return {"all": data}
+        if isinstance(data, list): # Sequence case
+            if isinstance(data[0], VoxelGrid): # Binary segmentation case
+                return {"all": data}
+            # Multi segmentation case
             return {"anterior": [d[0] for d in data],
                     "posterior": [d[1] for d in data]}
-        return {"all": data}
+
+
 
     def on_predict_epoch_end(self, trainer, pl_module, outputs):
         # We have to wait until the end of the epoch to get the sequences
