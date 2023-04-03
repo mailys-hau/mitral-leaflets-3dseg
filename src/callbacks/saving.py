@@ -83,7 +83,7 @@ class SavePredictedSequence(EnhancedCallback):
                                    data=inp[f].squeeze().numpy())
                 ftg = tg[f].squeeze().numpy()
                 fpr = pred[f].squeeze().numpy()
-                if fpr.shape[0] > 1: # Multi class setting
+                if fpr.ndim == 4: # Multi class setting
                     hpred.create_dataset(f"anterior-{f + 1:02d}", data=fpr[0])
                     hpred.create_dataset(f"posterior-{f + 1:02d}", data=fpr[1])
                     htg.create_dataset(f"anterior-{f + 1:02d}", data=ftg[0])
