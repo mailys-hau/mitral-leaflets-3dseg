@@ -11,7 +11,7 @@ class MonaiMetric(Metric):
     """ We mimic `torchmetrics.classification`, to have per class results """
     is_differentiable = False
     higher_is_better = False
-    full_state_update = None
+    full_state_update = True
     def __init__(self, include_background=False, distance_metric="euclidean",
                  reduction="mean", multidim_average="global"):
         super(MonaiMetric, self).__init__()
