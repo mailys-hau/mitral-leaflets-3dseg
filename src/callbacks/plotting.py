@@ -21,9 +21,8 @@ class Plot3D(Plotter):
             vin, vtg, vpred = vinputs[0], vlabels[0], vpreds[0]
             # Set it to dict for `echoviz` to read it
             vtg, vpred = self.to_dict(vtg), self.to_dict(vpred)
-            filename = fname.with_stem(fname.stem)
             self.plotter(vin, vtg, vpred, title=f"{fname.stem}'s result", show=False,
-                         filename=filename)
+                         filename=fname)
             return
         for i in range(0, len(vinputs), self.frame_stride):
             vin, vtg, vpred = vinputs[i], vlabels[i], vpreds[i]
@@ -51,9 +50,8 @@ class SlicePlot(SlicePlotter):
             vin, vtg, vpred = vinputs[0], vlabels[0], vpreds[0]
             # Set it to dict for `echoviz` to read it
             vtg, vpred = self.to_dict(vtg), self.to_dict(vpred)
-            filename = fname.with_stem(fname.stem)
             self.plotter(vin, vtg, self.index, self.axis, vpred,
-                         title=f"{fname.stem}'s result", show=False, filename=filename)
+                         title=f"{fname.stem}'s result", show=False, filename=fname)
             return
         for i in range(0, len(vinputs), self.frame_stride):
             vin, vtg, vpred = vinputs[i], vlabels[i], vpreds[i]

@@ -47,6 +47,7 @@ class SliceVolumePlot(SlicePlotter):
         self.plotter = ecv.sliced_volume
         self.frame_stride = frame_stride
         self.slice_stride = slice_stride
+        self.by_frame = True # You only plot one frame at a time
 
     def setup(self, trainer, pl_module, stage):
         self.resolve_dirpath(trainer, f"vol-slice_{self.view}")
