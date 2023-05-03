@@ -29,7 +29,7 @@ class DiceEntropyLoss(nn.modules.loss._WeightedLoss):
         return self.weight[0] * dice + self.weight[1] * xentropy
 
 class DiceFocalLoss(nn.modules.loss._WeightedLoss):
-    """ Combine Dice score and CrossEntropy as loss """
+    """ Combine Dice score and FocalLoss as loss """
     def __init__(self, weight=None,
                  # Dice parameters
                  ignore_background=True, zero_div_eps=1e-5,

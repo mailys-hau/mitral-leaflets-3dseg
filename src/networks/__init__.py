@@ -14,7 +14,8 @@ _all_losses = {"BalancedEntropyLoss": BalancedEntropyLoss,
                "DiceLoss": DiceLoss, "DiceEntropyLoss": DiceEntropyLoss,
                "DiceFocalLoss": DiceFocalLoss, "FocalLoss": FocalLoss,
                "PreservedBalancedEntropyLoss": PreservedBalancedEntropyLoss,
-               "XEntropyLoss": XEntropyLoss}
+               "XEntropyLoss": XEntropyLoss,
+               "TopkFocalLoss": TopkFocalLoss}
 
 
 
