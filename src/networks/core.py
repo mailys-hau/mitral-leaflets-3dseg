@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchmetrics
 
-from data import POSTPROCESS
+from data.postprocess import grey_morphology
 from metrics import MONAI_METRICS
 from utils import LinearCosineLR
 
@@ -22,7 +22,7 @@ class EnhancedLightningModule(pl.LightningModule):
         self.optimizer_config = optimizer
         self.lr_scheduler = lr_scheduler
         self.final_activation = final_activation
-        self.postprocess = POSTPROCESS.get(postprocess, None)
+        self.postprocess = postprocess
         self._init_metrics(metrics)
         self.final_activation = final_activation
 
@@ -34,7 +34,7 @@ class EnhancedLightningModule(pl.LightningModule):
         self.metrics = nn.ModuleDict({"mtrain": nn.ModuleDict(),
                                       "mval": nn.ModuleDict(),
                                       "mtest": nn.ModuleDict()})
-        if self.postprocess:
+        if self.postprocess is not None:
             self.metrics.update({"pmval": nn.ModuleDict(),
                                  "pmtest": nn.ModuleDict()})
         def build_metric(name, *args, **kwargs):
@@ -60,11 +60,11 @@ class EnhancedLightningModule(pl.LightningModule):
 
     def _step_end(self, outs, name="loss", mode="train"):
         outs[name] = outs[name].mean()
-        if mode != "train" and self.postprocess:
+        if mode != "train" and self.postprocess is not None:
             # Shape is (B, C, W, H, D)
             ppreds = []
             for elt in outs["preds"]: # Apply element wise in the batch
-                ppreds.append(self.postprocess(elt))
+                ppreds.append(grey_morphology(elt, self.postprocess))
             outs["ppreds"] = torch.stack(ppreds)
         self._update_metrics(outs, mode)
         return outs
@@ -148,10 +148,10 @@ class EnhancedLightningModule(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         _, y = batch
         preds, _ = self._step(batch, batch_idx)
-        if self.postprocess:
+        if self.postprocess is not None:
             # Shape is (B, C, W, H, D)
             for i in range(len(preds)): # Apply element wise in the batch
-                preds[i] = self.postprocess(preds[i])
+                preds[i] = grey_morphology(preds[i], self.postprocess)
         return preds
 
 
