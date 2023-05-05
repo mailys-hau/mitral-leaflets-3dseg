@@ -16,6 +16,15 @@ CUMNBF = list(accumulate(NBF, initial=0))
 
 
 
+def clean_history(hist):
+    # Remove unwanted stuff from WandB history
+    hist.drop("_step", axis=1, inplace=True)
+    hist = hist.astype(float) # Just in case
+    hist[hist.columns[hist.columns.str.contains("masd|hdf")]] *= 0.7 # Vox to mm
+    hist[hist.columns[~hist.columns.str.contains("masd|hdf")]] *= 100 # Accuracies
+    return hist
+
+
 @cli.command(context_settings={"help_option_names": ["-h", "--help"],
                                "show_default": True})
 @cli.argument("run_id", type=str)
@@ -25,19 +34,26 @@ CUMNBF = list(accumulate(NBF, initial=0))
             help="Whether your run was binary or multi segmentation.")
 @cli.option("--per-sequence", "-s / -S", is_flag=True, default=True,
             help="Also compute a summary per sequence.")
-def summarize(run_id, accuracies, multi, per_sequence):
+@cli.option("--post-process", "-p / -P", "post", is_flag=True, default=True,
+            help="Also compute the summary for post-process values")
+def summarize(run_id, accuracies, multi, per_sequence, post):
     """ Pouet pouet pouet """
     api = wandb.Api()
-    run = api.run(f"tee-4d/3DMV-segmentation/{run_id}")
+    smulti = "multi-" if multi else ''
+    run = api.run(f"tee-4d/3DMV-{smulti}segmentation/{run_id}")
     metrics = ALL_METRICS[multi] if accuracies else CORE_METRICS[multi]
+    pmetrics = [ f"p_{m}" for m in metrics ] if post else []
     res = run.history(keys=metrics) # Return `pandas.DataFrame`
-    res.drop("_step", axis=1, inplace=True)
-    res = res.astype(float) # Just in case
-    res[res.columns[res.columns.str.contains("masd|hdf")]] *= 0.7 # Vox to mm
-    res[res.columns[~res.columns.str.contains("masd|hdf")]] *= 100 # Accuracies
+    pres = run.history(keys=pmetrics) # Return `pandas.DataFrame`
+    res, pres = clean_history(res), clean_history(pres)
     print("Gobal summary: ")
     for c in res.columns:
         print(f"  {c.capitalize():<{7}}: {res[c].mean():>{5}.2f} ± {res[c].std():.2f}")
+    if post:
+        print("Post-processed global summary:")
+    for c in pres.columns:
+        cc = c.split('_')[-1]
+        print(f"  {cc.capitalize():<{7}}: {pres[c].mean():>{5}.2f} ± {pres[c].std():.2f}")
     if per_sequence:
         print("\nPer sequence summary:")
         for i in range(len(CUMNBF) - 1):
