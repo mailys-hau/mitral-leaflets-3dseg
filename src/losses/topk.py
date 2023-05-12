@@ -5,7 +5,7 @@ Idea coming from https://arxiv.org/abs/2103.14127
 import torch
 import torch.nn as nn
 
-from losses.x_entropy import FocalLoss
+from losses.x_entropy import XEntropyLoss, FocalLoss
 
 
 
@@ -45,6 +45,15 @@ class _TopkWeighted(nn.modules.loss._WeightedLoss):
             return loss.sum()
         return loss
 
+
+class TopkXEntropyLoss(_Topk):
+    """ Only use k worst values to compute XEntropyLoss """
+    def __init__(self, k=128, sorted=False, reduction="mean",
+                 # FocalLoss parameters
+                 weight=None):
+        super(TopkXEntropyLoss, self).__init__(k, sorted, reduction)
+        self.loss = XEntropyLoss(weight, size_average=None, ignore_index=-100,
+                              reduce=None, reduction="none", label_smoothing=0)
 
 class TopkFocalLoss(_Topk):
     """ Only use k worst values to compute FocalLoss """
