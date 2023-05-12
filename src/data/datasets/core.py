@@ -18,7 +18,7 @@ class _HDFDataset(Dataset):
                  resize="center-random", spatial_size=[128, 128, 128],
                  norm="256", contrast=None, augmentation=False, cache=False):
         super(_HDFDataset, self).__init__()
-        self.prefix = Path(data_dir).expanduser().resolve()
+        self.prefixes = self._setup_prefixes(data_dir)
         self._setup_indexes(hdfnames)
         self.multiclass = multiclass
         keys = ["in", "out"]
@@ -29,6 +29,11 @@ class _HDFDataset(Dataset):
         self.augmentation = self._define_augmentations(keys) if augmentation\
                                 else augmentation
         self.cache = {} if cache else None
+
+    def _setup_prefixes(self, prefixes):
+        if isinstance(prefixes, list):
+            return [ Path(p).expanduser().resolve() for p in prefixes ]
+        return [ Path(prefixes).expanduser().resolve() ]
 
     def _setup_indexes(self, hdfnames):
         # Bunch of indexes' lists to ease __getitem__'s process
@@ -79,8 +84,10 @@ class _HDFDataset(Dataset):
             vout = torch.stack([~leaflet, leaflet])
         return self.norm(vin), vout
 
-    def get_path(self, i):
-        return self.prefix.joinpath(self.fnames[i])
+    def get_path(self, i): # Not the prettiest
+        for p in self.prefixes:
+            if p.joinpath(self.fnames[i]).is_file():
+                return p.joinpath(self.fnames[i])
 
     def get_volumes(self, i, iseq, iframe):
         # i is the general index of the dataset
