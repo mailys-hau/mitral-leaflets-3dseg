@@ -27,3 +27,12 @@ def rec_update(d, u):
             else:
                 d[k] = v
     return d
+
+def rec_flatten(l):
+    out = l.__class__() # Agnostic for list or TensorList
+    for e in l:
+        if isinstance(e, list):
+            out.extend(rec_flatten(e))
+        else:
+            out.append(e)
+    return out

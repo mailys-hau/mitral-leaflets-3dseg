@@ -8,13 +8,13 @@ import torchmetrics
 
 from data.postprocess import grey_morphology
 from metrics import MONAI_METRICS
-from utils import LinearCosineLR
+from utils import LinearCosineLR, TensorList
 
 
 
 class EnhancedLightningModule(pl.LightningModule):
     def __init__(self, loss=nn.MSELoss(),
-                 optimizer={"name": "Adam", "params": {}}, lr_scheduler=True,
+                 optimizer={"name": "Adam"}, lr_scheduler=True,
                  final_activation=nn.Softmax(dim=1), postprocess=None,
                  metrics=[]):
         super(EnhancedLightningModule, self).__init__()
@@ -24,7 +24,6 @@ class EnhancedLightningModule(pl.LightningModule):
         self.final_activation = final_activation
         self.postprocess = postprocess
         self._init_metrics(metrics)
-        self.final_activation = final_activation
 
 
     def _init_metrics(self, metrics):
@@ -50,25 +49,11 @@ class EnhancedLightningModule(pl.LightningModule):
                 display_name = f"{p}{v}_{m['display_name']}".strip('_')
                 self.metrics[mode].update({display_name: metric})
 
-
-    def _step(self, batch, batch_idx):
-        x, y = batch
-        out = self.forward(x)
-        # Softmax is baked in `nn.CrossEntropyLoss`, only do it for preds
-        sout = self.final_activation(out)
-        return sout, self.loss(out, y)
-
-    def _step_end(self, outs, name="loss", mode="train"):
-        outs[name] = outs[name].mean()
-        if mode != "train" and self.postprocess is not None:
-            # Shape is (B, C, W, H, D)
-            ppreds = []
-            for elt in outs["preds"]: # Apply element wise in the batch
-                ppreds.append(grey_morphology(elt, self.postprocess))
-            outs["ppreds"] = torch.stack(ppreds)
-        self._update_metrics(outs, mode)
-        return outs
-
+    def do_postprocess(self, batch):
+        ppreds = []
+        for elt in batch: # Apply element wise in the batch
+            ppreds.append(grey_morphology(elt, self.postprocess))
+        return ppreds
 
     def _update_metrics(self, outs, mode="train"):
         # "train" key isn't allowed for an `nn.ModuleDict`
@@ -99,7 +84,6 @@ class EnhancedLightningModule(pl.LightningModule):
             for k, m in metrics.items():
                 do_update(k, m)
 
-
     def _log_errs(self, errs, name="loss", on_step=False, on_epoch=True):
         if isinstance(errs, dict): # Used in VAE for example
             if 'v' in name:
@@ -111,18 +95,21 @@ class EnhancedLightningModule(pl.LightningModule):
         return {name: errs}
 
 
-    def training_step_end(self, outs):
-        self._step_end(outs)
+    def _step(self, batch, batch_idx):
+        x, y = batch
+        out = self.forward(x)
+        # Softmax is baked in `nn.CrossEntropyLoss`, only do it for preds
+        sout = self.final_activation(out)
+        return sout, self.loss(out, y)
 
-    def validation_step_end(self, outs):
-        self._step_end(outs, "v_loss", "val")
+    def _step_end(self, outs, name="loss", mode="train"):
+        outs[name] = outs[name].mean()
+        if mode != "train" and self.postprocess:
+            # Shape is (B, C, W, H, D)
+            outs["ppreds"] = torch.stack(self.do_postprocess(outs["preds"]))
+        self._update_metrics(outs, mode)
+        return outs
 
-    def test_step_end(self, outs):
-        self._step_end(outs, mode="test")
-
-    def predict_step_end(self, outs):
-        # Metrics are for test, we're not logging anything here
-        return outs # outs = preds in this case
 
     def training_step(self, batch, batch_idx):
         _, y = batch
@@ -150,9 +137,22 @@ class EnhancedLightningModule(pl.LightningModule):
         preds, _ = self._step(batch, batch_idx)
         if self.postprocess is not None:
             # Shape is (B, C, W, H, D)
-            for i in range(len(preds)): # Apply element wise in the batch
-                preds[i] = grey_morphology(preds[i], self.postprocess)
+            preds = self.do_postprocess(preds)
         return preds
+
+
+    def training_step_end(self, outs):
+        self._step_end(outs)
+
+    def validation_step_end(self, outs):
+        self._step_end(outs, "v_loss", "val")
+
+    def test_step_end(self, outs):
+        self._step_end(outs, mode="test")
+
+    def predict_step_end(self, outs):
+        # Metrics are for test, we're not logging anything here
+        return outs # outs = preds in this case
 
 
     def configure_optimizers(self):
@@ -168,5 +168,57 @@ class EnhancedLightningModule(pl.LightningModule):
             lrs = LinearCosineLR(opt, lr, 100, tot_steps)
         return [opt], [{"scheduler": lrs, "interval": "step"}]
 
-    #def configure_callbacks(self):
-    #    return pl.callbacks.ModelCheckpoint(monitor="v_loss")
+
+class ListOutputModule(EnhancedLightningModule):
+    """ Extend `EnhancedLightningModule` to handle list of outputs from the network """
+    def __init__(self, out_channels=2, loss=nn.MSELoss(),
+                 optimizer={"name": "Adam"}, lr_scheduler=True,
+                 final_activation=nn.Softmax(dim=1), postprocess=None,
+                 metrics=[]):
+        super(ListOutputModule, self).__init__(
+                loss=loss, optimizer=optimizer, lr_scheduler=lr_scheduler,
+                final_activation=final_activation,
+                postprocess=postprocess, metrics=metrics
+                )
+        self.out_channels = out_channels
+
+    # *_step and *_step_end are the same as mother class
+    def _step(self, batch, batch_idx):
+        x, ys = batch
+        outs = self.forward(x) # Return `nn.TensorList`
+        # Softmax is baked in `nn.CrossEntropy`, only do it for preds
+        souts = TensorList(*map(self.final_activation, outs))
+        # Stack on batch dim
+        #FIXME: For unknown reason, ys is nested of one level here
+        return souts, self.loss(torch.cat(outs, dim=0), torch.cat(ys[0], dim=0))
+
+    def _step_end(self, outs, name="loss", mode="train"):
+        outs[name] = outs[name].mean()
+        if mode != "train" and self.postprocess:
+            outs["ppreds"] = TensorList(*self.do_postprocess(outs["preds"]))
+        self._update_metrics(outs, mode)
+        return outs
+
+
+    def _update_metrics(self, outs, mode="train"):
+        # "train" key isn't allowed for an `nn.ModuleDict`
+        #FIXME: For unknown reason, ys is nested of one level here
+        preds, yy = outs["preds"], outs["target"][0]
+        metrics = self.metrics[f"m{mode}"]
+        on_step = True if mode == "test" else False
+        on_epoch = False if mode == "test" else True
+        def do_update(k, m, i):
+            try:
+                val = m(preds[i], yy[i])
+            except TypeError: # Accuracies prefer booleans as target
+                val = m(preds[i], yy[i].to(torch.bool))
+            self.log_dict({f"{k}/{i}": val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
+        for k, m in metrics.items():
+            for i in range(len(preds)):
+                do_update(k, m, i)
+        if "ppreds" in outs.keys():
+            # Re-compute for post-processed predictions
+            metrics, preds = self.metrics[f"pm{mode}"], outs["ppreds"]
+            for k, m in metrics.items():
+                for i in range(len(preds)):
+                    do_update(k, m, i)

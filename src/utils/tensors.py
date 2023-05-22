@@ -23,6 +23,10 @@ class TensorList(list):
     def __repr__(self): #TODO? Prettier representation
         return f"TensorList({super().__repr__()})"
 
+    def __setstate__(self, state):
+        # FIXME: What do I do with this? Crash if transferred to Tensor
+        pass
+
     def __getattribute__(self, name):
         try: #FIXME: Ugly
             out = object.__getattribute__(self, name) # Look in self

@@ -3,13 +3,14 @@ import torch.nn as nn
 
 from losses import *
 from networks.mixed_architecture import SwinUNETR, UNETR
-from networks.unet import UNet, ResUNet
+from networks.unet import UNet, ResUNet, ResUNetnUps
 
 
 
 
 _all_models = {"UNet": UNet, "SwinUNETR": SwinUNETR, "ResUNet": ResUNet,
-               "UNETR": UNETR}
+               "UNETR": UNETR,
+               "ResUNetnUps": ResUNetnUps}
 _all_losses = {"BalancedEntropyLoss": BalancedEntropyLoss,
                "DiceLoss": DiceLoss, "DiceEntropyLoss": DiceEntropyLoss,
                "DiceFocalLoss": DiceFocalLoss, "FocalLoss": FocalLoss,
