@@ -3,12 +3,56 @@ import torch
 import torch.nn as nn
 
 from copy import deepcopy
+from monai.networks.layers.factories import Conv
+from monai.networks.nets.basic_unet import Down, TwoConv, UpCat
 from monai.utils import ensure_tuple_rep
 
 from networks.utils import SkipConnection
 from utils import rec_flatten, TensorList
 
 
+
+class _UNetnUps(nn.Module):
+    """ Create a UNet with a decoder per outputed channels. Modeled after `mnn.BasicUNet` """
+    def __init__(self, spatial_dims=3, in_channels=1, out_channels=2,
+                 features=(16, 16, 32, 64, 128, 16),
+                 act=("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+                 norm=("instance", {"affine": True}), bias=True, dropout=0, upsample="deconv"):
+        super(_UNetnUps, self).__init__()
+        fea = ensure_tuple_rep(features, 6)
+        print(f"UNetnUps features: {fea}")
+        self.out_channels = out_channels
+        self.conv_0 = TwoConv(spatial_dims, in_channels, features[0], act, norm, bias, dropout)
+        self.down_1 = Down(spatial_dims, fea[0], fea[1], act, norm, bias, dropout)
+        self.down_2 = Down(spatial_dims, fea[1], fea[2], act, norm, bias, dropout)
+        self.down_3 = Down(spatial_dims, fea[2], fea[3], act, norm, bias, dropout)
+        self.down_4 = Down(spatial_dims, fea[3], fea[4], act, norm, bias, dropout)
+        self.upcat_4 = nn.ModuleList()
+        self.upcat_3 = nn.ModuleList()
+        self.upcat_2 = nn.ModuleList()
+        self.upcat_1 = nn.ModuleList()
+        self.final_conv = nn.ModuleList()
+        for i in range(self.out_channels):
+            self.upcat_4.append(UpCat(spatial_dims, fea[4], fea[3], fea[3], act, norm, bias, dropout, upsample))
+            self.upcat_3.append(UpCat(spatial_dims, fea[3], fea[2], fea[2], act, norm, bias, dropout, upsample))
+            self.upcat_2.append(UpCat(spatial_dims, fea[2], fea[1], fea[1], act, norm, bias, dropout, upsample))
+            self.upcat_1.append(UpCat(spatial_dims, fea[1], fea[0], fea[0], act, norm, bias, dropout, upsample))
+            self.final_conv.append(Conv["conv", spatial_dims](fea[5], 1, kernel_size=1))
+
+    def forward(self, x):
+        x0 = self.conv_0(x)
+        x1 = self.down_1(x0)
+        x2 = self.down_2(x1)
+        x3 = self.down_3(x2)
+        x4 = self.down_4(x3)
+        outs = TensorList()
+        for i in range(self.out_channels):
+            u4 = self.upcat_4[i](x4, x3)
+            u3 = self.upcat_3[i](u4, x2)
+            u2 = self.upcat_2[i](u3, x1)
+            u1 = self.upcat_1[i](u2, x0)
+            outs.append(self.final_conv[i](u1))
+        return outs
 
 class _ResUNetnUps(mnn.UNet):
     """ Create a ResUNet with a decoder per outputed channels """
