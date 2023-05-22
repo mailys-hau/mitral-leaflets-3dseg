@@ -9,6 +9,7 @@ from torch import from_numpy as fnp
 from torch.utils.data import Dataset
 
 from data.transforms import NORMS, RESIZE
+from utils import TensorList
 
 
 
@@ -110,3 +111,21 @@ class _HDFDataset(Dataset):
     @property
     def nb_sequences(self):
         return len(self.fnames)
+
+
+class _ListHDFDataset(_HDFDataset):
+    """ Load volume from HDF using specific architecture """
+    def __init__(self, data_dir, hdfnames, resize="center-random", spatial_size=[128, 128, 128],
+                 norm="256", contrast=None, augmentation=False, cache=False):
+        # This dataset makes no sense if not multiclass, so we enforce it
+        super(_ListHDFDataset, self).__init__(data_dir, hdfnames, multiclass=True,
+                                              resize=resize, spatial_size=spatial_size,
+                                              norm=norm, contrast=contrast,
+                                              augmentation=augmentation, cache=cache)
+
+    def get_volumes(self, i, iseq, iframe):
+        vin, vout = super().get_volumes(i, iseq, iframe)
+        # A bit lazy, but that will do
+        # Don't keep background since you're doing multiple binary segmentation
+        vout = TensorList(*[ vout[k].unsqueeze(0) for k in range(1, len(vout)) ])
+        return vin, vout
