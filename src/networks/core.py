@@ -212,7 +212,8 @@ class ListOutputModule(EnhancedLightningModule):
                 val = m(preds[i], yy[i])
             except TypeError: # Accuracies prefer booleans as target
                 val = m(preds[i], yy[i].to(torch.bool))
-            self.log_dict({f"{k}/{i}": val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
+            # i + 1 is only for aesthetic purpose in WandB
+            self.log_dict({f"{k}/{i + 1}": val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
         for k, m in metrics.items():
             for i in range(len(preds)):
                 do_update(k, m, i)
