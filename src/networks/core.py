@@ -175,12 +175,38 @@ class ListOutputModule(EnhancedLightningModule):
                  optimizer={"name": "Adam"}, lr_scheduler=True,
                  final_activation=nn.Softmax(dim=1), postprocess=None,
                  metrics=[]):
+        self.out_channels = out_channels
         super(ListOutputModule, self).__init__(
                 loss=loss, optimizer=optimizer, lr_scheduler=lr_scheduler,
                 final_activation=final_activation,
                 postprocess=postprocess, metrics=metrics
                 )
-        self.out_channels = out_channels
+
+    def _init_metrics(self, metrics):
+        # Metrics are automatically duplicated per out_channels instead of having
+        # to specify them all in configuration file
+        all_metrics = dict(ispc.getmembers(torchmetrics, ispc.isclass))
+        all_metrics.update(MONAI_METRICS)
+        # We use `nn.ModuleDict` to always be on proper device and such
+        self.metrics = nn.ModuleDict({"mtrain": nn.ModuleDict(),
+                                      "mval": nn.ModuleDict(),
+                                      "mtest": nn.ModuleDict()})
+        if self.postprocess is not None:
+            self.metrics.update({"pmval": nn.ModuleDict(),
+                                 "pmtest": nn.ModuleDict()})
+        def build_metric(name, *args, **kwargs):
+            return all_metrics[name](*args, **kwargs)
+        for m in metrics:
+            for mode in self.metrics.keys():
+                if mode == "mtrain" and m["name"] in MONAI_METRICS.keys():
+                    # Monai computes with `np.array` so use with parsimony
+                    continue
+                for i in range(self.out_channels):
+                    metric = build_metric(m["name"], *m.get("args", []), **m.get("kwargs", {}))
+                    v = 'v' if "val" in mode else ''
+                    p = 'p' if 'p' in mode else '' # Postprocess
+                    display_name = f"{p}{v}_{m['display_name']}/{i + 1}".strip('_')
+                    self.metrics[mode].update({display_name: metric})
 
     # *_step and *_step_end are the same as mother class
     def _step(self, batch, batch_idx):
@@ -212,14 +238,13 @@ class ListOutputModule(EnhancedLightningModule):
                 val = m(preds[i], yy[i])
             except TypeError: # Accuracies prefer booleans as target
                 val = m(preds[i], yy[i].to(torch.bool))
-            # i + 1 is only for aesthetic purpose in WandB
-            self.log_dict({f"{k}/{i + 1}": val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
+            self.log_dict({f"{k}": val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
         for k, m in metrics.items():
-            for i in range(len(preds)):
-                do_update(k, m, i)
+            i = int(k.split('/')[-1]) - 1
+            do_update(k, m, i)
         if "ppreds" in outs.keys():
             # Re-compute for post-processed predictions
             metrics, preds = self.metrics[f"pm{mode}"], outs["ppreds"]
             for k, m in metrics.items():
-                for i in range(len(preds)):
-                    do_update(k, m, i)
+                i = int(k.split('/')[-1]) - 1
+                do_update(k, m, i)
