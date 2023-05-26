@@ -14,7 +14,9 @@ class DiceLoss(nn.modules.loss._Loss):
         # Receive tensors of shape (B, C,*) | Target is assumed to be one hot
         dim = list(range(2, pred.ndim)) # Don't reduce over batch or classes
         y_pred = F.softmax(pred, dim=1)
-        if self.ignore_background: # Background is assumed to be first channel
+        if self.ignore_background and y_pred.shape[1] > 1:
+            # If binary segmentation there's nothing to ignore
+            # Background is assumed to be first channel
             y_pred, target = y_pred[:,1:], target[:,1:]
         inter = (y_pred * target).sum(dim=dim)
         tpos, ppos = target.sum(dim=dim), y_pred.sum(dim=dim)
