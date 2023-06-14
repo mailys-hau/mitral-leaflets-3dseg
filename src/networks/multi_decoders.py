@@ -37,7 +37,8 @@ class _UNetnUps(nn.Module):
             self.upcat_3.append(UpCat(spatial_dims, fea[3], fea[2], fea[2], act, norm, bias, dropout, upsample))
             self.upcat_2.append(UpCat(spatial_dims, fea[2], fea[1], fea[1], act, norm, bias, dropout, upsample))
             self.upcat_1.append(UpCat(spatial_dims, fea[1], fea[0], fea[0], act, norm, bias, dropout, upsample))
-            self.final_conv.append(Conv["conv", spatial_dims](fea[5], 1, kernel_size=1))
+            # Output background and positive class per head to ease the workflow building
+            self.final_conv.append(Conv["conv", spatial_dims](fea[5], 2, kernel_size=1))
 
     def forward(self, x):
         x0 = self.conv_0(x)
@@ -78,7 +79,8 @@ class _ResUNetnUps(mnn.UNet):
                 upc = c + channels[1]
             down = self._get_down_layer(inc, c, s, is_top)
             if is_top:
-                up = self._get_up_layer(upc, 1, s, is_top)
+                # Output background and positive class per head to ease the workflow building
+                up = self._get_up_layer(upc, 2, s, is_top)
             else:
                 up = self._get_up_layer(upc, outc, s, is_top)
             return (self._get_connection_down_block(down, downblock),

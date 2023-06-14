@@ -124,8 +124,10 @@ class _ListHDFDataset(_HDFDataset):
                                               augmentation=augmentation, cache=cache)
 
     def get_volumes(self, i, iseq, iframe):
-        vin, vout = super().get_volumes(i, iseq, iframe)
         # A bit lazy, but that will do
-        # Don't keep background since you're doing multiple binary segmentation
-        vout = TensorList(*[ vout[k].unsqueeze(0) for k in range(1, len(vout)) ])
-        return vin, vout
+        vin, vout = super().get_volumes(i, iseq, iframe)
+        vout = vout.to(torch.bool)
+        # To ease the implementation, each target is returned as two channels
+        # 1st element of vout is just background, don't keep it
+        vout = TensorList(*[ torch.stack([~vout[k], vout[k]]) for k in range(1, len(vout)) ])
+        return vin, vout.to(torch.float)
