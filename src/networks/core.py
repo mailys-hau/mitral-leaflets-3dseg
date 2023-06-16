@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchmetrics
 
-from data.postprocess import grey_morphology
+from data.postprocess import grey_morphology, MORPHOLOGIES
 from metrics import MONAI_METRICS
 from utils import LinearCosineLR, TensorList
 
@@ -22,9 +22,28 @@ class EnhancedLightningModule(pl.LightningModule):
         self.optimizer_config = optimizer
         self.lr_scheduler = lr_scheduler
         self.final_activation = final_activation
-        self.postprocess = postprocess
+        self._init_postprocess(postprocess)
         self._init_metrics(metrics)
 
+
+    def _init_postprocess(self, postprocess):
+        # NB: The order of the given function will be the one used to apply the post process
+        #FIXME: Allow to specify transform arguments
+        if postprocess is None:
+            return postprocess
+        monai_transforms = dict(ispc.getmembers(mtr, ispc.isclass))
+        if not isinstance(postprocess, list):
+            postprocess = [postprocess]
+        self.postprocess = []
+        for p in postprocess:
+            if p in MORPHOLOGIES.keys():
+                morpho = lambda vol, name=p: grey_morphology(vol, name)
+                self.postprocess.append(morpho)
+            elif p in monai_transforms.keys():
+                trans = monai_transforms[p]()
+                self.postprocess.append(trans)
+            else:
+                raise ValueError(f"{p} is neither a valid morpholy or monai transform.")
 
     def _init_metrics(self, metrics):
         all_metrics = dict(ispc.getmembers(torchmetrics, ispc.isclass))
@@ -52,7 +71,10 @@ class EnhancedLightningModule(pl.LightningModule):
     def do_postprocess(self, batch):
         ppreds = []
         for elt in batch: # Apply element wise in the batch
-            ppreds.append(grey_morphology(elt, self.postprocess))
+            processed = elt
+            for p in self.postprocess: # Post processed function are queued
+                processed = p(processed)
+            ppreds.append(processed)
         return ppreds
 
     def _update_metrics(self, outs, mode="train"):
@@ -221,9 +243,18 @@ class ListOutputModule(EnhancedLightningModule):
     def _step_end(self, outs, name="loss", mode="train"):
         outs[name] = outs[name].mean()
         if mode != "train" and self.postprocess:
-            outs["ppreds"] = TensorList(*self.do_postprocess(outs["preds"]))
+            fmap = lambda x: torch.stack(self.do_postprocess(x))
+            outs["ppreds"] = TensorList(*map(fmap, outs["preds"]))
         self._update_metrics(outs, mode)
         return outs
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=None):
+        _, y = batch
+        preds, _ = self._step(batch, batch_idx)
+        if self.postprocess is not None:
+            # Shape is (B, C, W, H, D)
+            preds = TensorList(*map(self.do_postprocess, preds))
+        return preds
 
 
     def _update_metrics(self, outs, mode="train"):
