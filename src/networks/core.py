@@ -30,7 +30,8 @@ class EnhancedLightningModule(pl.LightningModule):
         # NB: The order of the given function will be the one used to apply the post process
         #FIXME: Allow to specify transform arguments
         if postprocess is None:
-            return postprocess
+            self.postprocess = None
+            return
         monai_transforms = dict(ispc.getmembers(mtr, ispc.isclass))
         if not isinstance(postprocess, list):
             postprocess = [postprocess]
