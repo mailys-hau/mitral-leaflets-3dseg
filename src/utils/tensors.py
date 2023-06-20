@@ -49,6 +49,12 @@ class TensorList(list):
         return out
 
 
+    def __getitem__(self, key):
+        #FIXME? Efficiency
+        val = super().__getitem__(key)
+        return self._is_tensorlist(val)
+
+
     def _comparisons(self, other, op):
         out = TensorList()
         if isinstance(other, TensorList):
