@@ -1,7 +1,10 @@
 import h5py
+import torch
 
 from pathlib import Path
 from pytorch_lightning.callbacks import Callback
+
+from data.datasets.core import _ListHDFDataset
 
 
 
@@ -46,3 +49,16 @@ class EnhancedCallback(Callback):
             self.dirpath = save_dir.joinpath(category)
         self.dirpath = self.dirpath.expanduser().resolve()
         self.dirpath.mkdir(parents=True, exist_ok=True)
+
+    def rm_background(self, dataset, tgs, preds):
+        # Target is given as (C, W, H, D) and predictions as (B, C, W, H, D) with B == 1
+        if isinstance(dataset, _ListHDFDataset): # We're dealing with TensorList
+            # Remove background
+            tg = [ torch.cat([ t[1:] for t in tltg ]) for tltg in tgs ]
+            #FIXME: Why are pred nested?
+            pred = [ torch.cat([ p[0, 1:] for p in tlp ]) for tlp in preds[0] ]
+        else:
+            # Remove background and select proper frames
+            tg = [ t[1:] for t in tgs ]
+            pred = [ p[0, 1:] for p in preds ]
+        return tg, pred

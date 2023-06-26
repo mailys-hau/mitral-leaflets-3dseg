@@ -69,8 +69,7 @@ class SavePredictedSequence(EnhancedCallback):
             inp, tg = dataset.get_sequence(iseq)
             nbf = len(inp)
             # Remove background and select proper frames
-            tg = [ t[1:] for t in tg ]
-            pred = [ p[0, 1:] for p in preds[prev_nbf:nbf + prev_nbf] ]
+            tg, pred = self.rm_background(dataset, tg, preds[prev_nbf:nbf + prev_nbf])
             fname = dataset.get_path(iseq)
             hdf = h5py.File(self.dirpath.joinpath(fname.name), 'w')
             self.add_voxinfo(fname, hdf)

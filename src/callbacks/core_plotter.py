@@ -46,9 +46,9 @@ class Plotter(EnhancedCallback):
             vin = self.t2v(inp, voxinfo)
             nbf = len(vin)
             # First class is background, we don't plot it
-            vtg = [ self.t2v(t[1:], voxinfo) for t in tg ]
-            # preds is given as (B,C,W,H,D) and B = 1
-            vpred = [ self.t2v(p[0,1:], voxinfo) for p in preds[prev_nbf:nbf + prev_nbf] ]
+            tg, pred = self.rm_background(dataset, tg, preds[prev_nbf:nbf + prev_nbf])
+            vtg = [ self.t2v(t, voxinfo) for t in tg ]
+            vpred = [ self.t2v(p, voxinfo) for p in pred ]
             fname = self.dirpath.joinpath(dataset.fnames[iseq])
             # Go down to children to plotter for the detail
             self.do_plot(vin, vtg, vpred, fname)

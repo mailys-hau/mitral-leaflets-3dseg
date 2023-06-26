@@ -254,7 +254,8 @@ class ListOutputModule(EnhancedLightningModule):
         preds, _ = self._step(batch, batch_idx)
         if self.postprocess is not None:
             # Shape is (B, C, W, H, D)
-            preds = TensorList(*map(self.do_postprocess, preds))
+            fmap = lambda x: torch.stack(self.do_postprocess(x))
+            preds = TensorList(*map(fmap, preds))
         return preds
 
 
