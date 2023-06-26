@@ -10,7 +10,8 @@ _datasets = {"DummyDataset": DummyDataset,
              "FrameDataset": FrameDataset,
              "MiddleFrameDataset": MiddleFrameDataset,
              "ListMiddleFrameDataset": ListMiddleFrameDataset,
-             "SequenceDataset": SequenceDataset}
+             "SequenceDataset": SequenceDataset,
+             "ListSequenceDataset": ListSequenceDataset}
 
 _collates = {"collate_tensorlist": collate_tensorlist}
 
