@@ -16,6 +16,8 @@ class TensorList(list):
         self.__doc__ = None #TODO
 
     def _is_tensorlist(self, elts):
+        if isinstance(elts, torch.Tensor):
+            return elts
         if len(elts) > 0 and isinstance(elts[0], (torch.Tensor, TensorList)):
             return TensorList(*elts)
         return elts # Simple list
