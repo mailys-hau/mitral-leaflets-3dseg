@@ -56,7 +56,7 @@ class EnhancedCallback(Callback):
             # Remove background
             tg = [ torch.cat([ t[1:] for t in tltg ]) for tltg in tgs ]
             #FIXME: Why are pred nested?
-            pred = [ torch.cat([ p[0, 1:] for p in tlp ]) for tlp in preds[0] ]
+            pred = [ torch.cat([ p[0, 1:] for p in tlp[0] ]) for tlp in preds ]
         else:
             # Remove background and select proper frames
             tg = [ t[1:] for t in tgs ]
