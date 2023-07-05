@@ -27,8 +27,8 @@ def grey_morphology(vol, name, threshold=0.5, ignore_background=True, size=None,
     # Receive (C, W, H, D) shape, C number of classes
     if len(unique(vol)) == 1:
         return vol, None, None # If all equal to one value, no need to call skimage
-    #filtered = torch.where(vol >= threshold, vol, 0)
-    vol_np, *_ = convert_data_type(vol, np.ndarray)
+    filtered = torch.where(vol >= threshold, vol, 0)
+    vol_np, *_ = convert_data_type(filtered, np.ndarray)
     out_np = np.empty_like(vol_np)
     if ignore_background:
         out_np[0] = vol_np[0]
@@ -39,6 +39,6 @@ def grey_morphology(vol, name, threshold=0.5, ignore_background=True, size=None,
     for c in range(start, len(vol_np)): # Classes are stacked
         processed = morpho(vol_np[c], size, footprint, structure, output=None,
                            mode=mode, cval=cval, origin=origin)
-        out_np[c] = np.where(processed, np.maximum(threshold, vol_np[c]), 0)
+        out_np[c] = processed
     out, *_ = convert_to_dst_type(out_np, vol)
     return out
