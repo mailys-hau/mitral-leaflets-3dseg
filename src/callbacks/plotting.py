@@ -61,3 +61,50 @@ class SlicePlot(SlicePlotter):
             self.plotter(vin, vtg, self.index, self.axis, vpred,
                          title=f"{fname.stem}'s frame {i:02d}", show=False,
                          filename=filename)
+
+
+class Plot3DDistance(Plotter):
+    def __init__(self, distance, frame_stride=1, dirpath=None):
+        super(Plot3DDistance, self).__init__(dirpath)
+        if distance.lower() == "asd":
+            self.plotter = ecv.asd_interactive_3d
+        elif distance.lower() == "sdf":
+            self.plotter = ecv.sdf_interactive_3d
+        else:
+            raise ValueError(f"Uknown distance '{distance}'.")
+        self.distance = distance
+        self.frame_stride = frame_stride
+        self.by_frame = True
+
+    def setup(self, trainer, pl_module, stage):
+        self.resolve_dirpath(trainer, f"3Dplots_{self.distance}")
+
+    def set_to_mm(self, vin, vtg, vpred):
+        for i in range(len(vin)):
+            vin[i].set_scale("mm")
+            if isinstance(vtg[i], list):
+                for j in range(len(vtg[i])):
+                    vtg[i][j].set_scale("mm")
+                    vpred[i][j].set_scale("mm")
+            else:
+                vtg[i].set_scale("mm")
+                vpred[i].set_scale("mm")
+
+    def do_plot(self, vinputs, vlabels, vpreds, fname):
+        fname = fname.with_suffix(".html")
+        self.set_to_mm(vinputs, vlabels, vpreds)
+        if len(vinputs) == 1: # When using the FrameDataset
+            # If one frame, don't add its number to filename
+            vin, vtg, vpred = vinputs[0], vlabels[0], vpreds[0]
+            # Set it to dict for `echoviz` to read it
+            vtg, vpred = self.to_dict(vtg), self.to_dict(vpred)
+            self.plotter(vtg, vpred, vinputs=vin, title=f"{fname.stem}'s result",
+                         show=False, filename=fname)
+            return
+        for i in range(0, len(vinputs), self.frame_stride):
+            vin, vtg, vpred = vinputs[i], vlabels[i], vpreds[i]
+            # Set it to dict for `echoviz` to read it
+            vtg, vpred = self.to_dict(vtg), self.to_dict(vpred)
+            filename = fname.with_stem(fname.stem + f"-frame-{i:02d}")
+            self.plotter(vtg, vpred, vinputs=vin, title=f"{fname.stem}'s frame {i:02d}",
+                         show=False, filename=filename)
