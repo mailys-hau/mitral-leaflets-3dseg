@@ -54,8 +54,8 @@ class _HDFDataset(Dataset):
             mt.RandAxisFlipd(keys),
             # Add noise to input
             mt.RandGaussianNoised(keys[0]),
-            mt.RandGridDistortiond(keys[0])
-            #mt.RandGridDistortiond(keys),
+            mt.RandGridDistortiond(keys[0]),
+            mt.Rand3DElasticd(keys[0], (5, 7), (50, 150))
             # And many more...
         ])
 
