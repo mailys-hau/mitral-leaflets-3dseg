@@ -60,5 +60,6 @@ class EnhancedCallback(Callback):
         else:
             # Remove background and select proper frames
             tg = [ t[1:] for t in tgs ]
-            pred = [ p[0, 1:] for p in preds ]
+            #FIXME: Why are each pred nested?
+            pred = [ p[0][1:] for p in preds ]
         return tg, pred

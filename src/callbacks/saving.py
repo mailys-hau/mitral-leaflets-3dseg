@@ -90,5 +90,5 @@ class SavePredictedSequence(EnhancedCallback):
                 else:
                     hpred.create_dataset(f"vol{f + 1:02d}", data=fpr)
                     htg.create_dataset(f"vol{f + 1:02d}", data=ftg)
-            prev_nbf = nbf
+            prev_nbf += nbf
             hdf.close()
