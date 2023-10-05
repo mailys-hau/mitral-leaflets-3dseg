@@ -93,7 +93,7 @@ class EnhancedLightningModule(pl.LightningModule):
                     # Counter PyTorch automatic squeeze of scalars
                     val = val.unsqueeze(0)
             else: # Accuracies prefer booleans as target
-                val = m(preds, y.to(torch.bool))
+                val = m(preds, y.bool())
             if val.shape == ():
                 self.log_dict({k: val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
                 return
@@ -266,11 +266,15 @@ class ListOutputModule(EnhancedLightningModule):
         metrics = self.metrics[f"m{mode}"]
         on_step = True if mode == "test" else False
         on_epoch = False if mode == "test" else True
+        is_dist = lambda k: "hdf" in k or "masd" in k
         def do_update(k, m, i):
-            try:
-                val = m(preds[i], yy[i])
-            except TypeError: # Accuracies prefer booleans as target
-                val = m(preds[i], yy[i].to(torch.bool))
+            pred, y = preds[i], yy[i]
+            if not is_dist(k):
+                pred, y = pred[:,1], y[:,1]
+            #try:
+            val = m(pred, y)
+            #except TypeError: # Accuracies prefer booleans as target
+            #    val = m(preds[i], yy[i].to(torch.bool))
             self.log_dict({f"{k}": val}, on_epoch=on_epoch, on_step=on_step, sync_dist=True)
         for k, m in metrics.items():
             i = int(k.split('/')[-1]) - 1
