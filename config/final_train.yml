@@ -1,0 +1,40 @@
+data:
+  dataset:
+    name: ListMiddleFrameDataset
+    augmentation: True
+  collate_fn: collate_tensorlist
+
+network:
+  name: ResUNetnUps
+  loss:
+    name: DiceFocalLoss
+    weight: [0.6, 0.4]
+  # Define interesting metrics here
+  metrics:
+    # Torchmetrics
+    - display_name: dice
+      name: F1Score
+      kwargs:
+          task: binary
+          ignore_index: 0
+    - display_name: acc
+      name: Accuracy
+      kwargs:
+        task: binary
+        average: none
+    - display_name: prec
+      name: Precision
+      kwargs:
+        task: binary
+        average: none
+    - display_name: rec
+      name: Recall
+      kwargs:
+        task: binary
+        average: none
+  out_channels: 2 # Number of classes without background
+  norm: "BATCH"
+  dropout: 0.2
+
+trainer:
+  max_epochs: 246
